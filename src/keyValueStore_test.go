@@ -1,23 +1,20 @@
-// +build !goci
 package main
 
 import (
 	"fmt"
-	. "launchpad.net/gocheck"
+	"testing"
 	"os"
+
+	"github.com/stretchr/testify/assert"
 )
 
-var testDbPath = "./test.db"
+var testDbPath = "/Users/jianweili/go/src/github.com/blastbao/gotwopc/test.db"
 
-type KeyValueStoreSuite struct{}
-
-var _ = Suite(&KeyValueStoreSuite{})
-
-func (s *KeyValueStoreSuite) TearDownTest(c *C) {
-	os.RemoveAll("./test.db")
+func TestTearDown(c *testing.T) {
+	os.RemoveAll(testDbPath)
 }
 
-func (s *KeyValueStoreSuite) TestGetWithoutPut(c *C) {
+func TestGetWithoutPut(c *testing.T) {
 	store := newKeyValueStore(testDbPath)
 	_, err := store.get("nonexistentvalue")
 	if err == nil {
@@ -25,7 +22,7 @@ func (s *KeyValueStoreSuite) TestGetWithoutPut(c *C) {
 	}
 }
 
-func (s *KeyValueStoreSuite) TestDeleteNonexistent(c *C) {
+func TestDeleteNonexistent(c *testing.T) {
 	store := newKeyValueStore(testDbPath)
 	err := store.del("nonexistentvalue")
 	if err != nil {
@@ -33,7 +30,7 @@ func (s *KeyValueStoreSuite) TestDeleteNonexistent(c *C) {
 	}
 }
 
-func (s *KeyValueStoreSuite) TestKeyValueStoreAll(c *C) {
+func TestKeyValueStoreAll(c *testing.T) {
 	store := newKeyValueStore(testDbPath)
 	err := store.put("foo", "bar")
 	if err != nil {
@@ -45,7 +42,7 @@ func (s *KeyValueStoreSuite) TestKeyValueStoreAll(c *C) {
 		c.Fatal("Failed to get:", err)
 	}
 
-	c.Assert(val, Equals, "bar")
+	assert.Equal(c, val, "bar")
 
 	err = store.del("foo")
 	if err != nil {
@@ -58,7 +55,7 @@ func (s *KeyValueStoreSuite) TestKeyValueStoreAll(c *C) {
 	}
 }
 
-func (s *KeyValueStoreSuite) TestKeyValueStoreMultiple(c *C) {
+func TestKeyValueStoreMultiple(c *testing.T) {
 	store := newKeyValueStore(testDbPath)
 	const count = 10
 
@@ -79,11 +76,13 @@ func (s *KeyValueStoreSuite) TestKeyValueStoreMultiple(c *C) {
 			c.Fatal("Failed to get:", err)
 		}
 
-		c.Assert(v, Equals, val)
+		fmt.Printf("key=%s, val=%s, real v=%s\n", key, val, v)
+		assert.Equal(c, v, val)
+
 	}
 }
 
-func (s *KeyValueStoreSuite) TestList(c *C) {
+func TestList(c *testing.T) {
 	store := newKeyValueStore(testDbPath)
 	const count = 10
 
@@ -103,7 +102,7 @@ func (s *KeyValueStoreSuite) TestList(c *C) {
 	}
 }
 
-func (s *KeyValueStoreSuite) BenchmarkKeyValueStorePut(c *C) {
+func BenchmarkKeyValueStorePut(c *testing.B) {
 	store := newKeyValueStore(testDbPath)
 	for i := 0; i < c.N; i++ {
 		key := fmt.Sprintf("key%v", i)

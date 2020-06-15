@@ -13,8 +13,14 @@ type ReplicaClient struct {
 }
 
 func NewReplicaClient(host string) *ReplicaClient {
-	client := &ReplicaClient{host, nil}
+
+	client := &ReplicaClient{
+		host,
+		nil,
+	}
+
 	client.tryConnect()
+
 	return client
 }
 
@@ -22,7 +28,6 @@ func (c *ReplicaClient) tryConnect() (err error) {
 	if c.rpcClient != nil {
 		return
 	}
-
 	rpcClient, err := rpc.DialHTTP("tcp", c.host)
 	if err != nil {
 		return
@@ -92,6 +97,7 @@ func (c *ReplicaClient) Commit(txid string, die ReplicaDeath) (Success *bool, er
 }
 
 func (c *ReplicaClient) Abort(txid string) (Success *bool, err error) {
+
 	if err = c.tryConnect(); err != nil {
 		return
 	}
@@ -109,6 +115,7 @@ func (c *ReplicaClient) Abort(txid string) (Success *bool, err error) {
 }
 
 func (c *ReplicaClient) Get(key string) (Value *string, err error) {
+
 	if err = c.tryConnect(); err != nil {
 		return
 	}
@@ -126,6 +133,7 @@ func (c *ReplicaClient) Get(key string) (Value *string, err error) {
 }
 
 func (c *ReplicaClient) Ping(key string) (Value *string, err error) {
+
 	if err = c.tryConnect(); err != nil {
 		return
 	}

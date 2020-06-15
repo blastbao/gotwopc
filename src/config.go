@@ -82,9 +82,13 @@ func ParseOperation(s string) Operation {
 	return NoOp
 }
 
+
+
+
 type ReplicaDeath int
 
 const (
+
 	ReplicaDontDie ReplicaDeath = iota
 
 	// During mutation

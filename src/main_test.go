@@ -1,4 +1,3 @@
-// +build !goci
 package main
 
 import (
@@ -6,11 +5,7 @@ import (
 	"log"
 	"os"
 	"sync"
-	"testing"
 )
-
-// Hook up gocheck into the "go test" runner.
-func TestMain(t *testing.T) { TestingT(t) }
 
 type MainSuite struct{}
 

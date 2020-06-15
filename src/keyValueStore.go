@@ -43,7 +43,9 @@ func (s *keyValueStore) get(key string) (value string, err error) {
 	return
 }
 
+// 获取所有 keys
 func (s *keyValueStore) list() (keys []string, err error) {
+
 	files, err := ioutil.ReadDir(s.basePath)
 	if err != nil {
 		return nil, err

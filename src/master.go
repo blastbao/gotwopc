@@ -72,36 +72,55 @@ type GetResult struct {
 }
 
 func NewMaster(replicaCount int) *Master {
+
 	l := newLogger("logs/master.txt")
+
 	replicas := make([]*ReplicaClient, replicaCount)
 	for i := 0; i < replicaCount; i++ {
 		replicas[i] = NewReplicaClient(GetReplicaHost(i))
 	}
-	return &Master{replicaCount, replicas, l, make(map[string]TxState), false}
+
+	return &Master{
+		replicaCount,
+		replicas,
+		l,
+		make(map[string]TxState),
+		false,
+	}
 }
+
 
 func (m *Master) Get(args *GetArgs, reply *GetResult) (err error) {
 	return m.GetTest(&GetTestArgs{args.Key, -1}, reply)
 }
 
 func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
+
 	log.Println("Master.Get is being called")
+
 	rn := args.ReplicaNum
 	if rn < 0 {
 		rn = rand.Intn(m.replicaCount)
 	}
+
 	r, err := m.replicas[rn].Get(args.Key)
 	if err != nil {
 		log.Printf("Master.Get: request to replica %v for key %v failed\n", rn, args.Key)
 		return
 	}
+
 	reply.Value = *r
 	return nil
 }
 
 func (m *Master) Del(args *DelArgs, _ *int) (err error) {
 	var i int
-	return m.DelTest(&DelTestArgs{args.Key, MasterDontDie, make([]ReplicaDeath, m.replicaCount)}, &i)
+	return m.DelTest(
+		&DelTestArgs{
+			args.Key,
+			MasterDontDie,
+			make([]ReplicaDeath, m.replicaCount),
+		}, &i)
 }
 
 func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
@@ -117,7 +136,13 @@ func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
 
 func (m *Master) Put(args *PutArgs, _ *int) (err error) {
 	var i int
-	return m.PutTest(&PutTestArgs{args.Key, args.Value, MasterDontDie, make([]ReplicaDeath, m.replicaCount)}, &i)
+	return m.PutTest(
+		&PutTestArgs{
+			args.Key,
+			args.Value,
+			MasterDontDie,
+			make([]ReplicaDeath, m.replicaCount),
+		}, &i)
 }
 
 func (m *Master) PutTest(args *PutTestArgs, _ *int) (err error) {
@@ -139,50 +164,69 @@ func getReplicaDeath(replicaDeaths []ReplicaDeath, n int) ReplicaDeath {
 	return rd
 }
 
-func (m *Master) mutate(operation Operation, key string, masterDeath MasterDeath, replicaDeaths []ReplicaDeath, f func(r *ReplicaClient, txId string, i int, rd ReplicaDeath) (*bool, error)) (err error) {
+func (m *Master) mutate(
+
+	operation Operation,
+	key string,
+	masterDeath MasterDeath,
+	replicaDeaths []ReplicaDeath,
+	f func(r *ReplicaClient, txId string, i int, rd ReplicaDeath) (*bool, error),
+
+) (err error) {
+
 	action := operation.String()
 	txId := uniuri.New()
 	m.log.writeState(txId, Started)
 	m.txs[txId] = Started
 
-	// Send out all mutate requests in parallel. If any abort, send on the channel.
+	// Send out all mutate requests in parallel.
+	// If any abort, send on the channel.
 	// Channel must be buffered to allow the non-blocking read in the switch.
 	shouldAbort := make(chan int, m.replicaCount)
 	log.Println("Master."+action+" asking replicas to "+action+" tx:", txId, "key:", key)
-	m.forEachReplica(func(i int, r *ReplicaClient) {
-		success, err := f(r, txId, i, getReplicaDeath(replicaDeaths, i))
-		if err != nil {
-			log.Println("Master."+action+" r.Try"+action+":", err)
-		}
-		if success == nil || !*success {
-			shouldAbort <- 1
-		}
-	})
+
+	// 并发调用，阻塞等待所有请求结束
+	m.forEachReplica(
+		func(i int, r *ReplicaClient) {
+			// 调用 f()
+			success, err := f(r, txId, i, getReplicaDeath(replicaDeaths, i))
+			if err != nil {
+				log.Println("Master."+action+" r.Try"+action+":", err)
+			}
+			// 如果失败，就需要回滚
+			if success == nil || !*success {
+				shouldAbort <- 1
+			}
+		},
+	)
 
 	// If at least one replica needed to abort
 	select {
+	// 失败，需要回滚
 	case <-shouldAbort:
 		log.Println("Master."+action+" asking replicas to abort tx:", txId, "key:", key)
 		m.log.writeState(txId, Aborted)
 		m.txs[txId] = Aborted
 		m.sendAbort(action, txId)
 		return TxAbortedError
+	// 成功，需要提交（本地提交+远程提交）
 	default:
 		break
 	}
 
 	// The transaction is now officially committed
-	m.dieIf(masterDeath, MasterDieBeforeLoggingCommitted)
+	m.dieIf(masterDeath, MasterDieBeforeLoggingCommitted) //???
 	m.log.writeState(txId, Committed)
-	m.dieIf(masterDeath, MasterDieAfterLoggingCommitted)
+	m.dieIf(masterDeath, MasterDieAfterLoggingCommitted) //???
 	m.txs[txId] = Committed
 
 	log.Println("Master."+action+" asking replicas to commit tx:", txId, "key:", key)
+	// 发送 "commit" 给 replicas
 	m.sendAndWaitForCommit(action, txId, replicaDeaths)
-
 	return
 }
 
+// 发送 "abort" 给 replicas
 func (m *Master) sendAbort(action string, txId string) {
 	m.forEachReplica(func(i int, r *ReplicaClient) {
 		_, err := r.Abort(txId)
@@ -192,6 +236,7 @@ func (m *Master) sendAbort(action string, txId string) {
 	})
 }
 
+// 发送 "commit" 给 replicas
 func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths []ReplicaDeath) {
 	m.forEachReplica(func(i int, r *ReplicaClient) {
 		for {
@@ -205,6 +250,7 @@ func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths 
 	})
 }
 
+// 并发调用 f() 的封装
 func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
 	var wg sync.WaitGroup
 	wg.Add(m.replicaCount)
@@ -216,6 +262,7 @@ func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
 	}
 	wg.Wait()
 }
+
 
 func (m *Master) Ping(args *PingArgs, reply *GetResult) (err error) {
 	reply.Value = args.Key
@@ -232,13 +279,20 @@ func (m *Master) Status(args *StatusArgs, reply *StatusResult) (err error) {
 }
 
 func (m *Master) recover() (err error) {
+
+	// 从事务日志中，读取所有 entries
 	entries, err := m.log.read()
 	if err != nil {
 		return
 	}
 
+	//
 	m.didSuicide = false
+
+	// 遍历 entries ，如果某个 entry 是
 	for _, entry := range entries {
+
+		// 如果 entry
 		switch entry.txId {
 		case killedSelfMarker:
 			m.didSuicide = true
@@ -248,9 +302,11 @@ func (m *Master) recover() (err error) {
 			continue
 		}
 
+		// 根据 entry 恢复 m.txs[]，因为日志是有序的，所以 m.txs[] 中保存了事务的最终状态
 		m.txs[entry.txId] = entry.state
 	}
 
+	//
 	for txId, state := range m.txs {
 		switch state {
 		case Started:
@@ -264,26 +320,37 @@ func (m *Master) recover() (err error) {
 		}
 	}
 
+	//
 	if m.didSuicide {
 		m.log.writeSpecial(firstRestartAfterSuicideMarker)
 	}
+
 	return
 }
 
 func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
+
+
 	if !m.didSuicide && actual == expected {
+
 		log.Println("Killing self as requested at", expected)
+
 		m.log.writeSpecial(killedSelfMarker)
+
 		os.Exit(1)
 	}
+
+
 }
 
 func runMaster(replicaCount int) {
+
 	if replicaCount <= 0 {
 		log.Fatalln("Replica count must be greater than 0.")
 	}
 
 	master := NewMaster(replicaCount)
+
 	err := master.recover()
 	if err != nil {
 		log.Fatal("Error during recovery: ", err)
@@ -291,6 +358,7 @@ func runMaster(replicaCount int) {
 
 	server := rpc.NewServer()
 	server.Register(master)
+
 	log.Println("Master listening on port", MasterPort)
 	http.ListenAndServe(MasterPort, server)
 }

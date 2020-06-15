@@ -22,7 +22,6 @@ func (c *MasterClient) tryConnect() (err error) {
 	if c.rpcClient != nil {
 		return
 	}
-
 	rpcClient, err := rpc.DialHTTP("tcp", c.host)
 	if err != nil {
 		return
