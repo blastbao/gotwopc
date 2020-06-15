@@ -82,9 +82,6 @@ func ParseOperation(s string) Operation {
 	return NoOp
 }
 
-
-
-
 type ReplicaDeath int
 
 const (
