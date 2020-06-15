@@ -2,30 +2,46 @@ package main
 
 import (
 	"fmt"
-	flag "github.com/ogier/pflag"
-	"log"
-	"strconv"
+	"sync"
+	"time"
 )
 
-func main() {
+const MasterAddr = "localhost:7175"
+const ReplicaPortStart = 7176
 
-	isMaster 		:= flag.BoolP("master", "m", false, "start the master process")
-	replicaCount 	:= flag.IntP("replicaCount", "n", 0, "replica count for master")
-	isReplica 		:= flag.BoolP("replica", "r", false, "start a replica process")
-	replicaNumber 	:= flag.IntP("replicaIndex", "i", 0, "replica index to run, starting at 0")
-	flag.Parse()
+func GetReplicaHost(replicaNum int) string {
+	return fmt.Sprintf("localhost:%v", ReplicaPortStart+replicaNum)
+}
 
-	log.SetOutput(NewConditionalWriter())
-	log.SetFlags(0) //log.Ltime | log.Lmicroseconds)
-
-	switch {
-	case *isMaster:
-		log.SetPrefix("M  ")
-		runMaster(*replicaCount)
-	case *isReplica:
-		log.SetPrefix(fmt.Sprint("R", strconv.Itoa(*replicaNumber), " "))
-		runReplica(*replicaNumber)
-	default:
-		flag.Usage()
+func StartMaster(replicaNum int) {
+	var addrs []string
+	for i:=0;i<replicaNum;i++ {
+		addrs = append(addrs, GetReplicaHost(i))
 	}
+	opt := &Option{
+		Port: 7175,
+		LogPath: "logs/master.txt",
+		Replicas: addrs,
+	}
+	master := NewMaster(opt)
+	master.run()
+}
+
+func StartReplicas(replicaNum int) {
+	var wg sync.WaitGroup
+	for i:=0;i<replicaNum;i++ {
+		wg.Add(1)
+		go func(i int) {
+			replica := NewReplica(i)
+			replica.run()
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+
+func main() {
+	go StartMaster(3)
+	go StartReplicas(3)
+	time.Sleep(time.Hour)
 }

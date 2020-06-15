@@ -4,60 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
-	"net/rpc"
 	"os"
 	"strings"
 	"time"
 )
 
-
-
-// 事务
-type Tx struct {
-	id    string
-	key   string
-	op    Operation
-	state TxState
-}
-
-
-type TxPutArgs struct {
-	Key   string
-	Value string
-	TxId  string
-	Die   ReplicaDeath
-}
-
-type TxDelArgs struct {
-	Key  string
-	TxId string
-	Die  ReplicaDeath
-}
-
-type CommitArgs struct {
-	TxId string
-	Die  ReplicaDeath
-}
-
-type AbortArgs struct {
-	TxId string
-}
-
-type ReplicaKeyArgs struct {
-	Key string
-}
-
-type ReplicaGetResult struct {
-	Value string
-}
-
-type ReplicaActionResult struct {
-	Success bool
-}
-
-
 type Replica struct {
+	Host string
+
 	num            int
 	committedStore *keyValueStore
 	tempStore      *keyValueStore
@@ -67,9 +21,20 @@ type Replica struct {
 	didSuicide     bool
 }
 
+func (r *Replica) run() {
+	err := r.recover()
+	if err != nil {
+		log.Fatal("Error during recovery: ", err)
+	}
+	log.Println("Replica:", r.num, "listening on: ", r.Host)
+	Run(r, r.Host)
+}
+
 func NewReplica(num int) *Replica {
+	host := GetReplicaHost(num)
 	l := newLogger(fmt.Sprintf("logs/replica%v.txt", num))
 	return &Replica{
+		host,
 		num,
 		newKeyValueStore(fmt.Sprintf("data/replica%v/committed", num)),
 		newKeyValueStore(fmt.Sprintf("data/replica%v/temp", num)),
@@ -121,8 +86,8 @@ func (r *Replica) tryMutate(key string, txId string, die ReplicaDeath, op Operat
 	// 查询资源，若已被其它事务锁定，则 abort 当前事务
 	if _, ok := r.lockedKeys[key]; ok {
 		// Key is currently being modified, Abort
-		log.Println("Received", op.String(), "for locked key:", key, "in tx:", txId, " Aborting")
-		r.txs[txId].state = Aborted
+		log.Println("Received", op.String(), "for locked key:", key, "in tx:", txId, ", Aborting!")
+		r.txs[txId].State = Aborted
 		r.log.writeState(txId, Aborted)
 		return nil
 	}
@@ -135,7 +100,7 @@ func (r *Replica) tryMutate(key string, txId string, die ReplicaDeath, op Operat
 		err = f()
 		if err != nil {
 			log.Println("Unable to", op.String(), "uncommited val for transaction:", txId, "key:", key, ", Aborting")
-			r.txs[txId].state = Aborted
+			r.txs[txId].State = Aborted
 			r.log.writeState(txId, Aborted)
 			delete(r.lockedKeys, key)
 			return
@@ -143,7 +108,7 @@ func (r *Replica) tryMutate(key string, txId string, die ReplicaDeath, op Operat
 	}
 
 	// 执行 f() 成功，将事务状态由 "Started" 更新为 "Prepared"，回复成功给 master
-	r.txs[txId].state = Prepared
+	r.txs[txId].State = Prepared
 	r.log.writeOp(txId, Prepared, op, key)
 	reply.Success = true
 
@@ -167,17 +132,17 @@ func (r *Replica) Commit(args *CommitArgs, reply *ReplicaActionResult) (err erro
 		return errors.New(fmt.Sprint("Received commit for unknown transaction:", txId))
 	}
 
-	_, keyLocked := r.lockedKeys[tx.key]
+	_, keyLocked := r.lockedKeys[tx.Key]
 	if !keyLocked {
 		// Shouldn't happen, key is unlocked
 		log.Println("Received commit for transaction with unlocked key:", txId)
 	}
 
-	switch tx.state {
+	switch tx.State {
 	case Prepared:
-		err = r.commitTx(txId, tx.op, tx.key, args.Die)
+		err = r.commitTx(txId, tx.Op, tx.Key, args.Die)
 	default:
-		log.Println("Received commit for transaction in state ", tx.state.String())
+		log.Println("Received commit for transaction in state ", tx.State.String())
 	}
 
 	if err == nil {
@@ -247,18 +212,18 @@ func (r *Replica) Abort(args *AbortArgs, reply *ReplicaActionResult) (err error)
 	}
 
 	// 检查资源锁定情况
-	_, keyLocked := r.lockedKeys[tx.key]
+	_, keyLocked := r.lockedKeys[tx.Key]
 	if !keyLocked {
 		// Shouldn't happen, key is unlocked
-		log.Println("Received abort for transaction with unlocked key:", txId)
+		log.Println("[Abort] Received abort for transaction with unlocked key:", txId)
 	}
 
 	// 检查事务状态，如果是 "Prepared" 状态，则尚未提交，直接 abort，其它状态不予处理
-	switch tx.state {
+	switch tx.State {
 	case Prepared:
-		r.abortTx(txId, tx.op, tx.key)
+		r.abortTx(txId, tx.Op, tx.Key)
 	default:
-		log.Println("Received abort for transaction in state ", tx.state.String())
+		log.Println("[Abort] Received abort for transaction in state ", tx.State.String())
 	}
 
 	reply.Success = true
@@ -278,7 +243,7 @@ func (r *Replica) abortTx(txId string, op Operation, key string) {
 		if err != nil {
 			fmt.Println("Unable to del val for uncommitted tx:", txId, "key:", key)
 		}
-	//case DelOp:
+		//case DelOp:
 		// nothing to undo here
 	}
 
@@ -315,9 +280,7 @@ func (r *Replica) recover() (err error) {
 	r.didSuicide = false
 	for _, entry := range entries {
 
-
-
-		switch entry.txId {
+		switch entry.Id {
 		case killedSelfMarker:
 			r.didSuicide = true
 			continue
@@ -326,30 +289,30 @@ func (r *Replica) recover() (err error) {
 			continue
 		}
 
-		if entry.state == Prepared {
+		if entry.State == Prepared {
 			// 请求 master 查询事务状态
-			entry.state = r.getStatus(entry.txId)
+			entry.State = r.getStatus(entry.Id)
 			//
-			switch entry.state {
+			switch entry.State {
 			case Aborted:
-				log.Println("Aborting transaction during recovery: ", entry.txId, entry.key)
-				r.abortTx(entry.txId, RecoveryOp, entry.key)
+				log.Println("Aborting transaction during recovery: ", entry.Id, entry.Key)
+				r.abortTx(entry.Id, RecoveryOp, entry.Key)
 			case Committed:
-				log.Println("Committing transaction during recovery: ", entry.txId, entry.key)
-				r.commitTx(entry.txId, RecoveryOp, entry.key, ReplicaDontDie)
+				log.Println("Committing transaction during recovery: ", entry.Id, entry.Key)
+				r.commitTx(entry.Id, RecoveryOp, entry.Key, ReplicaDontDie)
 			}
 
 		}
 
 
-		switch entry.state {
+		switch entry.State {
 		case Started:
 		case Prepared:
 			// abort
 		case Committed:
-			r.txs[entry.txId] = &Tx{entry.txId, entry.key, entry.op, Committed}
+			r.txs[entry.Id] = &Tx{entry.Id, entry.Key, entry.Op, Committed}
 		case Aborted:
-			r.txs[entry.txId] = &Tx{entry.txId, entry.key, entry.op, Aborted}
+			r.txs[entry.Id] = &Tx{entry.Id, entry.Key, entry.Op, Aborted}
 		}
 
 	}
@@ -381,8 +344,8 @@ func (r *Replica) cleanUpTempStore() (err error) {
 	for _, key := range keys {
 		txId, _ := r.parseTempStoreKey(key)
 		tx, ok := r.txs[txId]
-		if !ok || tx.state != Prepared {
-			println("Cleaning up temp key ", key)
+		if !ok || tx.State != Prepared {
+			println("[cleanUpTempStore] Cleaning up temp key ", key)
 			err = r.tempStore.del(key)
 			if err != nil {
 				return
@@ -396,10 +359,12 @@ func (r *Replica) cleanUpTempStore() (err error) {
 //
 // 请求 master 查询事务状态
 func (r *Replica) getStatus(txId string) TxState {
-	client := NewMasterClient(MasterPort)
-	for {
+	client := NewMasterClient(MasterAddr)
+
+	for retry := 0; retry < 3; {
 		state, err := client.Status(txId)
 		if err != nil {
+			retry ++
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -408,19 +373,6 @@ func (r *Replica) getStatus(txId string) TxState {
 	return NoState
 }
 
-
-func runReplica(num int) {
-	replica := NewReplica(num)
-	err := replica.recover()
-	if err != nil {
-		log.Fatal("Error during recovery: ", err)
-	}
-
-	server := rpc.NewServer()
-	server.Register(replica)
-	log.Println("Replica", num, "listening on port", ReplicaPortStart+num)
-	http.ListenAndServe(GetReplicaHost(num), server)
-}
 
 
 func (r *Replica) dieIf(actual ReplicaDeath, expected ReplicaDeath) {

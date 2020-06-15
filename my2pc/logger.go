@@ -6,16 +6,24 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 )
 
-
 // 日志条目
-type logEntry struct {
-	txId  string		// 事务ID
-	state TxState		// 事务状态
-	op    Operation		// 操作
-	key   string		// key
+type Entry struct {
+	Id  string				// 事务ID
+	State TxState		// 事务状态
+	Op    Operation	// 操作
+	Key   string			// key
+}
+
+func ParseTx(e Entry) *Tx {
+	t := &Tx{}
+	t.Id = e.Id
+	t.State = e.State
+	t.Key = e.Key
+	t.Op = e.Op
+	return t
+
 }
 
 type logRequest struct {
@@ -72,9 +80,10 @@ func (l *logger) loggingLoop() {
 		// 回复
 		req.done <- 1
 
-		log.Println("[logger][loggingLoop] ok.")
+		//log.Println("[logger][loggingLoop] ok.")
 	}
 }
+
 
 func (l *logger) writeSpecial(directive string) {
 	l.writeOp(directive, NoState, NoOp, "")
@@ -89,11 +98,12 @@ func (l *logger) writeOp(txId string, state TxState, op Operation, key string) {
 	done := make(chan int)
 	l.requests <- &logRequest{record, done}
 	<-done
-	fmt.Println("[logger][writeOp] ok .")
+	//fmt.Println("[logger][writeOp] ok .")
 }
 
-func (l *logger) read() (entries []logEntry, err error) {
-	entries = make([]logEntry, 0)
+
+func (l *logger) read() (entries []Entry, err error) {
+	entries = make([]Entry, 0)
 	file, err := os.OpenFile(l.path, os.O_RDONLY, 0)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -108,20 +118,7 @@ func (l *logger) read() (entries []logEntry, err error) {
 	}
 
 	for _, record := range records {
-		entries = append(entries, logEntry{record[0], ParseTxState(record[1]), ParseOperation(record[2]), record[3]})
-	}
-	return
-}
-
-type ConditionalWriter struct{}
-
-func NewConditionalWriter() *ConditionalWriter {
-	return &ConditionalWriter{}
-}
-
-func (w *ConditionalWriter) Write(b []byte) (n int, err error) {
-	if !strings.Contains(string(b), "The specified network name is no longer available") {
-		n, err = os.Stdout.Write(b)
+		entries = append(entries, Entry{record[0], ParseTxState(record[1]), ParseOperation(record[2]), record[3]})
 	}
 	return
 }

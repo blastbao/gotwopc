@@ -1,27 +1,15 @@
 package main
 
 import (
-	"io"
 	"log"
-	"os"
-	"os/exec"
-	"strconv"
 	"sync"
 	"testing"
 )
 
+
+
 func TestCmds_Run(t *testing.T) {
-	StartMaster()
-	//StartReplicas(true)
-}
-
-const ReplicaCount = 4
-var masterCmd *exec.Cmd
-var replicas = [ReplicaCount]*exec.Cmd{}
-
-func StartMaster() {
-	//masterCmd = ExecCmd("./my2pc", "-m", "-n", strconv.Itoa(ReplicaCount))
-	client := NewMasterClient(MasterPort)
+	client := NewMasterClient(MasterAddr)
 	rsp, err := client.Ping("whatever")
 	if err != nil {
 		log.Fatal(err)
@@ -29,57 +17,127 @@ func StartMaster() {
 	log.Println(*rsp)
 }
 
-func StartReplicas(shouldRestart bool) {
+func TestCmds_Put(t *testing.T) {
+
+	client := NewMasterClient(MasterAddr)
+	err := client.PutTest("foo", "bar", MasterDontDie, make([]ReplicaDeath, 4))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ReplicaCount := 3
+
+	// every replica should have the value
 	var wg sync.WaitGroup
+	wg.Add(ReplicaCount)
 	for i := 0; i < ReplicaCount; i++ {
-		wg.Add(1)
 		go func(i int) {
-			startReplica(i, shouldRestart)
+			val, err := client.GetTest("foo", i)
+			if err != nil {
+				log.Fatal(err)
+			}
 			wg.Done()
+			log.Println(*val)
+		}(i)
+	}
+	wg.Wait()
+
+
+	err = client.DelTest("foo", MasterDontDie, make([]ReplicaDeath, 4))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// no replica should have the value
+	wg.Add(ReplicaCount)
+	for i := 0; i < ReplicaCount; i++ {
+		go func(i int) {
+			_, err := client.GetTest("foo", i)
+			if err == nil {
+				log.Fatal("Del failed.")
+			}
+			wg.Done()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}(i)
 	}
 	wg.Wait()
 }
 
-func startReplica(n int, shouldRestart bool) {
+func TestReplicaShouldAbortIfPutOnLockedKey(t *testing.T) {
 
-	replicas[n] = ExecCmd("./my2pc", "-r", "-i", strconv.Itoa(n))
-	client := NewReplicaClient(GetReplicaHost(n))
-	if shouldRestart {
-		go func(cmd *exec.Cmd) {
-			if cmd != nil {
-				cmd.Wait()
-				if replicas[n] != nil {
-					startReplica(n, shouldRestart)
-				}
-			}
-		}(replicas[n])
-	}
-	_, err := client.Ping("whatever")
+	client, err := NewReplicaClient(GetReplicaHost(0))
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	ok, err := client.TryPut("foo", "bar1", "tx1", ReplicaDontDie)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*ok)
+
+	ok, err = client.TryPut("foo", "bar2", "tx2", ReplicaDontDie)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*ok)
+
+	ok, err = client.Commit("tx1", ReplicaDontDie)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*ok)
+
 }
 
 
-func ExecCmd(path string, args ...string) *exec.Cmd {
-	cmd := exec.Command(path, args...)
-	stdout, err := cmd.StdoutPipe()
+
+func Test_Status(t *testing.T) {
+	client := NewMasterClient(MasterAddr)
+	err := client.PutTest("foo", "bar", MasterDontDie, make([]ReplicaDeath, 4))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ok, err := client.Status("tx1")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*ok)
+}
+
+
+
+func TestReplicaShouldErrOnUnknownTxCommit(t *testing.T) {
+	client, err := NewReplicaClient(GetReplicaHost(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ok, err := client.Commit("tx1", ReplicaDontDie)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*ok)
+}
+
+
+func TestReplicaShouldAbortIfDelOnLockedKey(t *testing.T) {
+
+	client, err := NewReplicaClient(GetReplicaHost(0))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	stderr, err := cmd.StderrPipe()
+	ok, err := client.TryPut("foo", "bar1", "tx1", ReplicaDontDie)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = cmd.Start()
+	log.Println(*ok)
+
+	ok, err = client.TryDel("foo", "tx2", ReplicaDontDie)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	go io.Copy(os.Stdout, stdout)
-	go io.Copy(os.Stderr, stderr)
-
-	return cmd
+	log.Println(*ok)
 }

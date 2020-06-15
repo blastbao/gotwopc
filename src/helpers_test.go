@@ -70,6 +70,7 @@ func startReplica(c *C, n int, shouldRestart bool) {
 }
 
 func killMaster(c *C) {
+
 	if masterCmd == nil {
 		return
 	}

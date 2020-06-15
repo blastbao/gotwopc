@@ -1,106 +1,113 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"github.com/dchest/uniuri"
 	"log"
-	"math/rand"
-	"net/http"
-	"net/rpc"
 	"os"
+	"math/rand"
 	"sync"
 	"time"
 )
 
-var (
-	TxAbortedError = errors.New("Transaction aborted.")
-)
-
 type Master struct {
-	replicaCount int
-	replicas     []*ReplicaClient
-	log          *logger
-	txs          map[string]TxState
+	Host string
+	replicas []*ReplicaClient
+	log      *logger
+	txs      map[string]TxState
 	didSuicide   bool
 }
 
-type PutArgs struct {
-	Key   string
-	Value string
+type Option struct {
+	Port int
+	LogPath  string // "logs/master.txt"
+	Replicas []string
 }
 
-type PutTestArgs struct {
-	Key           string
-	Value         string
-	MasterDeath   MasterDeath
-	ReplicaDeaths []ReplicaDeath
-}
+func NewMaster(opt *Option) *Master {
 
-type GetArgs struct {
-	Key string
-}
+	host := fmt.Sprintf("%s:%d", "localhost", opt.Port)
 
-type GetTestArgs struct {
-	Key        string
-	ReplicaNum int
-}
+	l := newLogger(opt.LogPath)
 
-type DelArgs struct {
-	Key string
-}
-
-type DelTestArgs struct {
-	Key           string
-	MasterDeath   MasterDeath
-	ReplicaDeaths []ReplicaDeath
-}
-
-type StatusArgs struct {
-	TxId string
-}
-
-type StatusResult struct {
-	State TxState
-}
-
-type PingArgs struct {
-	Key string
-}
-
-type GetResult struct {
-	Value string
-}
-
-func NewMaster(replicaCount int) *Master {
-
-	l := newLogger("logs/master.txt")
-
-	replicas := make([]*ReplicaClient, replicaCount)
-	for i := 0; i < replicaCount; i++ {
-		replicas[i] = NewReplicaClient(GetReplicaHost(i))
+	clients := make([]*ReplicaClient, 0, len(opt.Replicas))
+	for _, replica := range opt.Replicas {
+		client, err :=  NewReplicaClient(replica)
+		if err != nil {
+			log.Println("[NewMaster] err=", err)
+		}
+		clients = append(clients, client)
 	}
 
 	return &Master{
-		replicaCount,
-		replicas,
+		host,
+		clients,
 		l,
 		make(map[string]TxState),
 		false,
 	}
 }
 
+func (m *Master) run() {
+
+	if len(m.replicas) <= 0 {
+		log.Fatalln("Replica count must be greater than 0.")
+	}
+
+	err := m.recover()
+	if err != nil {
+		log.Fatal("Error during recovery: ", err)
+	}
+
+	log.Println("Master: listening on: ", m.Host)
+	Run(m, m.Host)
+}
+
+
+func (m *Master) recover() (err error) {
+
+	// 读取事务日志
+	entries, err := m.log.read()
+	if err != nil {
+		return
+	}
+
+	// 根据 entry 恢复 m.txs[]，因为日志是有序的，所以 m.txs[] 中保存了事务的最终状态
+	for _, entry := range entries {
+		log.Println("[Master][recover] entry=", entry)
+		tx := ParseTx(entry)
+		m.txs[tx.Id] = tx.State
+	}
+
+	for txId, state := range m.txs {
+		switch state {
+		case Started:
+			fallthrough
+		case Aborted:
+			log.Println("[Master][recover] Aborting tx", txId, "during recovery.")
+			m.sendAbort("recover", txId)
+		case Committed:
+			log.Println("[Master][recover] Committing tx", txId, "during recovery.")
+			m.sendAndWaitForCommit("recover", txId, make([]ReplicaDeath, len(m.replicas)))
+		}
+	}
+
+	return
+}
 
 func (m *Master) Get(args *GetArgs, reply *GetResult) (err error) {
-	return m.GetTest(&GetTestArgs{args.Key, -1}, reply)
+	err = m.GetTest(&GetTestArgs{args.Key, -1}, reply)
+	log.Println("[Get] receive request: ", args.Key, "response: ", reply.Value)
+	return
 }
 
 func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
 
-	log.Println("Master.Get is being called")
+	log.Println("[GetTest] receive request: ", args.Key, args.ReplicaNum)
 
 	rn := args.ReplicaNum
 	if rn < 0 {
-		rn = rand.Intn(m.replicaCount)
+		rn = rand.Intn(len(m.replicas))
 	}
 
 	r, err := m.replicas[rn].Get(args.Key)
@@ -110,20 +117,24 @@ func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
 	}
 
 	reply.Value = *r
+
+
 	return nil
 }
 
 func (m *Master) Del(args *DelArgs, _ *int) (err error) {
+	log.Println("[Del] receive request: ", args.Key)
 	var i int
 	return m.DelTest(
 		&DelTestArgs{
 			args.Key,
 			MasterDontDie,
-			make([]ReplicaDeath, m.replicaCount),
+			make([]ReplicaDeath, len(m.replicas)),
 		}, &i)
 }
 
 func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
+	log.Println("[DelTest] receive request: ", args.Key, args.MasterDeath, args.ReplicaDeaths)
 	return m.mutate(
 		DelOp,
 		args.Key,
@@ -135,17 +146,19 @@ func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
 }
 
 func (m *Master) Put(args *PutArgs, _ *int) (err error) {
+	log.Println("[Put] receive request: ", args.Key, args.Value)
 	var i int
 	return m.PutTest(
 		&PutTestArgs{
 			args.Key,
 			args.Value,
 			MasterDontDie,
-			make([]ReplicaDeath, m.replicaCount),
+			make([]ReplicaDeath, len(m.replicas)),
 		}, &i)
 }
 
 func (m *Master) PutTest(args *PutTestArgs, _ *int) (err error) {
+	log.Println("[PutTest] receive request: ", args.Key, args.Value, args.MasterDeath, args.ReplicaDeaths)
 	return m.mutate(
 		PutOp,
 		args.Key,
@@ -182,7 +195,7 @@ func (m *Master) mutate(
 	// Send out all mutate requests in parallel.
 	// If any abort, send on the channel.
 	// Channel must be buffered to allow the non-blocking read in the switch.
-	shouldAbort := make(chan int, m.replicaCount)
+	shouldAbort := make(chan int, len(m.replicas))
 	log.Println("Master."+action+" asking replicas to "+action+" tx:", txId, "key:", key)
 
 	// 并发调用，阻塞等待所有请求结束
@@ -250,87 +263,9 @@ func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths 
 	})
 }
 
-// 并发调用 f() 的封装
-func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
-	var wg sync.WaitGroup
-	wg.Add(m.replicaCount)
-	for i := 0; i < m.replicaCount; i++ {
-		go func(i int, r *ReplicaClient) {
-			defer wg.Done()
-			f(i, r)
-		}(i, m.replicas[i])
-	}
-	wg.Wait()
-}
 
-
-func (m *Master) Ping(args *PingArgs, reply *GetResult) (err error) {
-	reply.Value = args.Key
-	return nil
-}
-
-func (m *Master) Status(args *StatusArgs, reply *StatusResult) (err error) {
-	state, ok := m.txs[args.TxId]
-	if !ok {
-		state = NoState
-	}
-	reply.State = state
-	return nil
-}
-
-func (m *Master) recover() (err error) {
-
-	// 从事务日志中，读取所有 entries
-	entries, err := m.log.read()
-	if err != nil {
-		return
-	}
-
-	//
-	m.didSuicide = false
-
-	// 遍历 entries ，如果某个 entry 是
-	for _, entry := range entries {
-
-		// 如果 entry
-		switch entry.txId {
-		case killedSelfMarker:
-			m.didSuicide = true
-			continue
-		case firstRestartAfterSuicideMarker:
-			m.didSuicide = false
-			continue
-		}
-
-		// 根据 entry 恢复 m.txs[]，因为日志是有序的，所以 m.txs[] 中保存了事务的最终状态
-		m.txs[entry.txId] = entry.state
-	}
-
-	//
-	for txId, state := range m.txs {
-		switch state {
-		case Started:
-			fallthrough
-		case Aborted:
-			log.Println("Aborting tx", txId, "during recovery.")
-			m.sendAbort("recover", txId)
-		case Committed:
-			log.Println("Committing tx", txId, "during recovery.")
-			m.sendAndWaitForCommit("recover", txId, make([]ReplicaDeath, m.replicaCount))
-		}
-	}
-
-	//
-	if m.didSuicide {
-		m.log.writeSpecial(firstRestartAfterSuicideMarker)
-	}
-
-	return
-}
 
 func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
-
-
 	if !m.didSuicide && actual == expected {
 
 		log.Println("Killing self as requested at", expected)
@@ -339,25 +274,35 @@ func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
 
 		os.Exit(1)
 	}
-
-
 }
 
-func runMaster(replicaCount int) {
 
-	if replicaCount <= 0 {
-		log.Fatalln("Replica count must be greater than 0.")
+// 并发调用 f() 的封装
+func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
+	var wg sync.WaitGroup
+	wg.Add(len(m.replicas))
+	for idx := range m.replicas {
+		go func(i int, r *ReplicaClient) {
+			defer wg.Done()
+			f(i, r)
+		}(idx, m.replicas[idx])
 	}
+	wg.Wait()
+}
 
-	master := NewMaster(replicaCount)
-	err := master.recover()
-	if err != nil {
-		log.Fatal("Error during recovery: ", err)
+func (m *Master) Ping(args *PingArgs, reply *GetResult) (err error) {
+	log.Println("[Ping] receive request: ", args.Key)
+	reply.Value = args.Key
+	return nil
+}
+
+func (m *Master) Status(args *StatusArgs, reply *StatusResult) (err error) {
+	log.Println("[Status] receive request: ", args.TxId)
+	state, ok := m.txs[args.TxId]
+	if !ok {
+		log.Println("[Status] args.TxId is not found, so return \"INVALID\".")
+		m.txs[args.TxId] = NoState
 	}
-
-	server := rpc.NewServer()
-	server.Register(master)
-
-	log.Println("Master listening on port", MasterPort)
-	http.ListenAndServe(MasterPort, server)
+	reply.State = state
+	return nil
 }
