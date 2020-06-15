@@ -1,5 +1,5 @@
 
-package main
+package rpc
 
 import (
 	"log"
@@ -7,25 +7,34 @@ import (
 	"net/rpc"
 )
 
+
+
 type MasterClient struct {
 	host      string
 	rpcClient *rpc.Client
 }
 
 func NewMasterClient(host string) *MasterClient {
-	client := &MasterClient{host, nil}
+
+	client := &MasterClient{
+		host,
+		nil,
+	}
 	client.tryConnect()
 	return client
 }
 
 func (c *MasterClient) tryConnect() (err error) {
+
 	if c.rpcClient != nil {
 		return
 	}
+
 	rpcClient, err := rpc.DialHTTP("tcp", c.host)
 	if err != nil {
 		return
 	}
+
 	c.rpcClient = rpcClient
 	return
 }

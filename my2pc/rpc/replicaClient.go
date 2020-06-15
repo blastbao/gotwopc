@@ -1,11 +1,14 @@
 
-package main
+package rpc
 
 import (
 	"log"
 	"net"
 	"net/rpc"
 )
+
+
+
 
 type ReplicaClient struct {
 	host      string
