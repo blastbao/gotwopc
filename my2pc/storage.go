@@ -5,10 +5,36 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
 )
 
-type KVStore struct {
-	kvs map[string]string
+type MemStore struct {
+	m sync.Map
+}
+
+func (s *MemStore) Put(key string, value interface{}) bool {
+	_, load := s.m.LoadOrStore(key, value)
+
+	return !load
+}
+
+func (s *MemStore) Get(key string) (interface{}, bool) {
+	return s.m.Load(key)
+}
+
+func (s *MemStore) Exist(key string) bool {
+	_, ok := s.m.Load(key)
+	return ok
+}
+
+func (s *MemStore) Del(key string) {
+	s.m.Delete(key)
+}
+
+func NewMemStore() *MemStore {
+	return &MemStore{
+		m: sync.Map{},
+	}
 }
 
 

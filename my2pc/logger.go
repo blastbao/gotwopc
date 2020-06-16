@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -23,7 +22,6 @@ func ParseTx(e Entry) *Tx {
 	t.Key = e.Key
 	t.Op = e.Op
 	return t
-
 }
 
 type logRequest struct {
@@ -63,7 +61,7 @@ func (l *logger) loggingLoop() {
 		// 读取请求
 		req := <-l.requests
 
-		fmt.Println(req)
+		//fmt.Println(req)
 
 		// 写文件
 		err := l.csvWriter.Write(req.record)
@@ -100,7 +98,6 @@ func (l *logger) writeOp(txId string, state TxState, op Operation, key string) {
 	<-done
 	//fmt.Println("[logger][writeOp] ok .")
 }
-
 
 func (l *logger) read() (entries []Entry, err error) {
 	entries = make([]Entry, 0)

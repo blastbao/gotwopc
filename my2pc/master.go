@@ -74,7 +74,7 @@ func (m *Master) recover() (err error) {
 
 	// 根据 entry 恢复 m.txs[]，因为日志是有序的，所以 m.txs[] 中保存了事务的最终状态
 	for _, entry := range entries {
-		log.Println("[Master][recover] entry=", entry)
+		log.Println("[recover] entry=", entry)
 		tx := ParseTx(entry)
 		m.txs[tx.Id] = tx.State
 	}
@@ -82,12 +82,13 @@ func (m *Master) recover() (err error) {
 	for txId, state := range m.txs {
 		switch state {
 		case Started:
-			fallthrough
+			log.Printf("[recover] started tx, now call `m.sendAbort(txId)`, txId=%s, state=%s", txId, state)
+			m.sendAbort("recover", txId)
 		case Aborted:
-			log.Println("[Master][recover] Aborting tx", txId, "during recovery.")
+			log.Printf("[recover] aborted tx, now call `m.sendAbort(txId)`, txId=%s, state=%s", txId, state)
 			m.sendAbort("recover", txId)
 		case Committed:
-			log.Println("[Master][recover] Committing tx", txId, "during recovery.")
+			log.Printf("[recover] commited tx, now call `m.sendAndWaitForCommit(txId)`, txId=%s, state=%s", txId, state)
 			m.sendAndWaitForCommit("recover", txId, make([]ReplicaDeath, len(m.replicas)))
 		}
 	}
@@ -104,7 +105,6 @@ func (m *Master) Get(args *GetArgs, reply *GetResult) (err error) {
 func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
 
 	log.Println("[GetTest] receive request: ", args.Key, args.ReplicaNum)
-
 	rn := args.ReplicaNum
 	if rn < 0 {
 		rn = rand.Intn(len(m.replicas))
@@ -115,9 +115,7 @@ func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
 		log.Printf("Master.Get: request to replica %v for key %v failed\n", rn, args.Key)
 		return
 	}
-
 	reply.Value = *r
-
 
 	return nil
 }
@@ -146,7 +144,7 @@ func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
 }
 
 func (m *Master) Put(args *PutArgs, _ *int) (err error) {
-	log.Println("[Put] receive request: ", args.Key, args.Value)
+	log.Printf("[Put] key=%s, value=%s",args.Key, args.Value)
 	var i int
 	return m.PutTest(
 		&PutTestArgs{
@@ -158,7 +156,9 @@ func (m *Master) Put(args *PutArgs, _ *int) (err error) {
 }
 
 func (m *Master) PutTest(args *PutTestArgs, _ *int) (err error) {
-	log.Println("[PutTest] receive request: ", args.Key, args.Value, args.MasterDeath, args.ReplicaDeaths)
+
+	log.Printf("[PutTest] key=%s, value=%s, MasterDeath=%v, ReplicaDeaths=%v",args.Key, args.Value, args.MasterDeath, args.ReplicaDeaths)
+
 	return m.mutate(
 		PutOp,
 		args.Key,
@@ -187,10 +187,13 @@ func (m *Master) mutate(
 
 ) (err error) {
 
+
+
 	action := operation.String()
 	txId := uniuri.New()
 	m.log.writeState(txId, Started)
 	m.txs[txId] = Started
+
 
 	// Send out all mutate requests in parallel.
 	// If any abort, send on the channel.
@@ -198,8 +201,10 @@ func (m *Master) mutate(
 	shouldAbort := make(chan int, len(m.replicas))
 	log.Println("Master."+action+" asking replicas to "+action+" tx:", txId, "key:", key)
 
+
 	// 并发调用，阻塞等待所有请求结束
 	m.forEachReplica(
+
 		func(i int, r *ReplicaClient) {
 			// 调用 f()
 			success, err := f(r, txId, i, getReplicaDeath(replicaDeaths, i))
@@ -211,7 +216,9 @@ func (m *Master) mutate(
 				shouldAbort <- 1
 			}
 		},
+
 	)
+
 
 	// If at least one replica needed to abort
 	select {
@@ -233,7 +240,6 @@ func (m *Master) mutate(
 	m.dieIf(masterDeath, MasterDieAfterLoggingCommitted) //???
 	m.txs[txId] = Committed
 
-	log.Println("Master."+action+" asking replicas to commit tx:", txId, "key:", key)
 	// 发送 "commit" 给 replicas
 	m.sendAndWaitForCommit(action, txId, replicaDeaths)
 	return
@@ -241,29 +247,33 @@ func (m *Master) mutate(
 
 // 发送 "abort" 给 replicas
 func (m *Master) sendAbort(action string, txId string) {
+	log.Println(fmt.Sprintf("[sendAbort] action=%s, txId=%s", action, txId))
 	m.forEachReplica(func(i int, r *ReplicaClient) {
 		_, err := r.Abort(txId)
 		if err != nil {
-			log.Println("Master."+action+" r.Abort:", err)
+			log.Println(fmt.Sprintf("[sendAbort] r.Abort(txId) failed, txId=%s, err=%v", txId, err))
+		} else {
+			log.Println(fmt.Sprintf("[sendAbort] r.Abort(txId) success, txId=%s, err=%v", txId, err))
 		}
 	})
 }
 
 // 发送 "commit" 给 replicas
 func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths []ReplicaDeath) {
+	log.Println(fmt.Sprintf("[sendAndWaitForCommit] action=%s, txId=%s, replicaDeaths=%v", action, txId, replicaDeaths))
 	m.forEachReplica(func(i int, r *ReplicaClient) {
-		for {
+		for retry := 0; retry < 3; {
 			_, err := r.Commit(txId, getReplicaDeath(replicaDeaths, i))
 			if err == nil {
+				log.Println(fmt.Sprintf("[sendAndWaitForCommit] r.Commit(txId) success, txId=%s, err=%v", txId, err))
 				break
 			}
-			log.Println("Master."+action+" r.Commit:", err)
+			log.Println(fmt.Sprintf("[sendAndWaitForCommit] r.Commit(txId) failed, txId=%s, err=%v", txId, err))
+			retry ++
 			time.Sleep(100 * time.Millisecond)
 		}
 	})
 }
-
-
 
 func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
 	if !m.didSuicide && actual == expected {
@@ -275,7 +285,6 @@ func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
 		os.Exit(1)
 	}
 }
-
 
 // 并发调用 f() 的封装
 func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
@@ -297,7 +306,9 @@ func (m *Master) Ping(args *PingArgs, reply *GetResult) (err error) {
 }
 
 func (m *Master) Status(args *StatusArgs, reply *StatusResult) (err error) {
-	log.Println("[Status] receive request: ", args.TxId)
+
+	defer log.Printf("[Status] receive request, txId=%s, state=%s: ", args.TxId, reply.State)
+
 	state, ok := m.txs[args.TxId]
 	if !ok {
 		log.Println("[Status] args.TxId is not found, so return \"INVALID\".")

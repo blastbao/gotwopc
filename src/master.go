@@ -232,6 +232,9 @@ func (m *Master) sendAbort(action string, txId string) {
 		_, err := r.Abort(txId)
 		if err != nil {
 			log.Println("Master."+action+" r.Abort:", err)
+
+			log.Println("Master."+action+" r.Abort:", err)
+
 		}
 	})
 }
@@ -245,6 +248,9 @@ func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths 
 				break
 			}
 			log.Println("Master."+action+" r.Commit:", err)
+
+
+
 			time.Sleep(100 * time.Millisecond)
 		}
 	})
@@ -324,13 +330,10 @@ func (m *Master) recover() (err error) {
 	if m.didSuicide {
 		m.log.writeSpecial(firstRestartAfterSuicideMarker)
 	}
-
 	return
 }
 
 func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
-
-
 	if !m.didSuicide && actual == expected {
 
 		log.Println("Killing self as requested at", expected)
@@ -339,8 +342,6 @@ func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
 
 		os.Exit(1)
 	}
-
-
 }
 
 func runMaster(replicaCount int) {
