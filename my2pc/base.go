@@ -2,10 +2,68 @@ package main
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"net/rpc"
+
+
+	log "github.com/sirupsen/logrus"
 )
+
+type Transaction struct {
+	Id          string
+	Key   		string
+	Op    		Operation
+	State 		TxState
+	F func() error
+
+	Redo     *RedoLog
+	Lock     *LockMgr
+	logger   *log.Entry
+}
+
+func (t *Transaction) Start() error {
+	if t.Lock.Lock(t.Key) {
+		t.logger.Error("t.LockMgr.Lock(t.Key) failed.")
+		t.Abort()
+		return errors.New("key is locked by others")
+	}
+	t.State = Started
+	// 执行事务逻辑
+	if t.F != nil {
+		if err := t.F(); err != nil {
+			t.logger.WithError(err).Error("t.F() failed.")
+			t.Abort()
+			t.Lock.Unlock(t.Key)
+			return err
+		}
+		t.logger.Info("[Transaction] t.F() ok.")
+	}
+	t.Redo.Write(t)
+	return nil
+}
+
+func (t *Transaction) Prepare() error {
+	t.State = Prepared
+	t.Redo.Write(t)
+	return nil
+}
+
+func (t *Transaction) Abort() error {
+	t.State = Aborted
+	t.Redo.Write(t)
+	return nil
+}
+
+func (t *Transaction) Commit() error {
+	t.State = Committed
+	t.Redo.Write(t)
+	t.Lock.Unlock(t.Key)
+	return nil
+}
+
+
+
+
 
 type Tx struct {
 	Id    string
@@ -20,7 +78,7 @@ type Tx struct {
 type TxState int
 
 const (
-	NoState TxState = iota
+	InValid TxState = iota
 	Started
 	Prepared
 	Committed
@@ -52,7 +110,7 @@ func ParseTxState(s string) TxState {
 	case "ABORTED":
 		return Aborted
 	}
-	return NoState
+	return InValid
 }
 
 type Operation int

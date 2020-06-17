@@ -72,23 +72,23 @@ func TestReplicaShouldAbortIfPutOnLockedKey(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	ok, err := client.TryPut("foo", "bar1", "tx1", ReplicaDontDie)
+	ok, err := client.TryPut("foo", "bar1", "tx1")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(ok)
 
-	ok, err = client.TryPut("foo", "bar2", "tx2", ReplicaDontDie)
+	ok, err = client.TryPut("foo", "bar2", "tx2")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(ok)
 
-	ok, err = client.Commit("tx1", ReplicaDontDie)
+	success, err := client.Commit("tx1")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(success)
 
 }
 
@@ -114,11 +114,11 @@ func TestReplicaShouldErrOnUnknownTxCommit(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ok, err := client.Commit("tx1", ReplicaDontDie)
+	ok, err := client.Commit("tx1")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(ok)
 }
 
 
@@ -129,15 +129,50 @@ func TestReplicaShouldAbortIfDelOnLockedKey(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	ok, err := client.TryPut("foo", "bar1", "tx1", ReplicaDontDie)
+	ok, err := client.TryPut("foo", "bar1", "tx1")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(ok)
 
-	ok, err = client.TryDel("foo", "tx2", ReplicaDontDie)
+
+
+
+
+	ok, err = client.TryDel("foo", "tx2")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*ok)
+	log.Println(ok)
+}
+
+
+
+func Test_Get(t *testing.T) {
+	client := NewMasterClient(MasterAddr)
+
+	err := client.Put("TestGetKe2y122223222212", "xxxxxxxxx")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//
+	//val, err := client.Get("TestGetKey")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//log.Println(*val)
+	//
+	//
+	//err = client.Del("TestGetKey")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//val, err = client.Get("TestGetKey")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//log.Println(*val)
+
 }

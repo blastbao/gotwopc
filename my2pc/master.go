@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/dchest/uniuri"
-	"log"
-	"os"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"sync"
 	"time"
@@ -13,9 +12,9 @@ import (
 type Master struct {
 	Host string
 	replicas []*ReplicaClient
-	log      *logger
-	txs      map[string]TxState
-	didSuicide   bool
+	redoLog 		*RedoLog
+	lockMgr 		*LockMgr
+	txm              map[string]*Transaction
 }
 
 type Option struct {
@@ -25,11 +24,7 @@ type Option struct {
 }
 
 func NewMaster(opt *Option) *Master {
-
 	host := fmt.Sprintf("%s:%d", "localhost", opt.Port)
-
-	l := newLogger(opt.LogPath)
-
 	clients := make([]*ReplicaClient, 0, len(opt.Replicas))
 	for _, replica := range opt.Replicas {
 		client, err :=  NewReplicaClient(replica)
@@ -40,11 +35,11 @@ func NewMaster(opt *Option) *Master {
 	}
 
 	return &Master{
-		host,
-		clients,
-		l,
-		make(map[string]TxState),
-		false,
+		Host: host,
+		replicas: clients,
+		txm: make(map[string]*Transaction),
+		lockMgr: NewLockMgr(),
+		redoLog: NewRedoLog(fmt.Sprintf("logs/master.txt")),
 	}
 }
 
@@ -63,33 +58,42 @@ func (m *Master) run() {
 	Run(m, m.Host)
 }
 
+func (m *Master) parseTx(e Entry) *Transaction {
+	t := &Transaction{
+		Id: e.Id,
+		State: e.State,
+		Key: e.Key,
+		Op: e.Op,
+		Redo: m.redoLog,
+		logger: log.WithFields(log.Fields{"txId":e.Id,"Key":e.Key, "op":e.Op}),
+	}
+	return t
+}
 
 func (m *Master) recover() (err error) {
 
-	// 读取事务日志
-	entries, err := m.log.read()
+	entries, err := m.redoLog.Read()
 	if err != nil {
 		return
 	}
 
-	// 根据 entry 恢复 m.txs[]，因为日志是有序的，所以 m.txs[] 中保存了事务的最终状态
-	for _, entry := range entries {
-		log.Println("[recover] entry=", entry)
-		tx := ParseTx(entry)
-		m.txs[tx.Id] = tx.State
+	txs := make(map[string]*Transaction)
+	for idx, entry := range entries {
+		log.WithFields(log.Fields{"idx":idx,"txId": entry.Id,"Op":entry.Op,"Key":entry.Key,"State":entry.State}).Info("[recover] entry:")
+		txs[entry.Id] = m.parseTx(entry)
 	}
 
-	for txId, state := range m.txs {
-		switch state {
+	for txId, tx := range txs {
+		logger := log.WithFields(log.Fields{"tx":tx})
+		logger.Info("[recover] transaction:")
+		switch tx.State {
+		case Aborted, Committed:
 		case Started:
-			log.Printf("[recover] started tx, now call `m.sendAbort(txId)`, txId=%s, state=%s", txId, state)
-			m.sendAbort("recover", txId)
-		case Aborted:
-			log.Printf("[recover] aborted tx, now call `m.sendAbort(txId)`, txId=%s, state=%s", txId, state)
-			m.sendAbort("recover", txId)
-		case Committed:
-			log.Printf("[recover] commited tx, now call `m.sendAndWaitForCommit(txId)`, txId=%s, state=%s", txId, state)
-			m.sendAndWaitForCommit("recover", txId, make([]ReplicaDeath, len(m.replicas)))
+			logger.Info("transaction is `Started`, should m.sendAbort(txId).")
+			m.sendAbort(txId)
+		case Prepared:
+			logger.Info("transaction is `Prepared`, should m.sendAbort(txId).")
+			m.sendAbort(txId)
 		}
 	}
 
@@ -116,174 +120,156 @@ func (m *Master) GetTest(args *GetTestArgs, reply *GetResult) (err error) {
 		return
 	}
 	reply.Value = *r
-
 	return nil
 }
 
 func (m *Master) Del(args *DelArgs, _ *int) (err error) {
-	log.Println("[Del] receive request: ", args.Key)
-	var i int
-	return m.DelTest(
-		&DelTestArgs{
-			args.Key,
-			MasterDontDie,
-			make([]ReplicaDeath, len(m.replicas)),
-		}, &i)
+	return m.DelTest(&DelTestArgs{args.Key}, nil)
 }
 
 func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
-	log.Println("[DelTest] receive request: ", args.Key, args.MasterDeath, args.ReplicaDeaths)
-	return m.mutate(
-		DelOp,
-		args.Key,
-		args.MasterDeath,
-		args.ReplicaDeaths,
-		func(r *ReplicaClient, txId string, i int, rd ReplicaDeath) (*bool, error) {
-			return r.TryDel(args.Key, txId, rd)
-		})
+
+	logger := log.WithFields(log.Fields{
+		"key":args.Key,
+	})
+
+	tryDel := func(r *ReplicaClient, txId string) (bool, error) {
+		return r.TryDel(args.Key, txId)
+	}
+
+	if err := m.try(DelOp, args.Key, tryDel); err != nil {
+		logger.WithError(err).Error("[DelTest] m.try(PutOp, args.Key, tryDel) failed.")
+		return err
+	}
+	logger.Info("[DelTest] ok.")
+	return nil
 }
 
 func (m *Master) Put(args *PutArgs, _ *int) (err error) {
-	log.Printf("[Put] key=%s, value=%s",args.Key, args.Value)
-	var i int
-	return m.PutTest(
-		&PutTestArgs{
-			args.Key,
-			args.Value,
-			MasterDontDie,
-			make([]ReplicaDeath, len(m.replicas)),
-		}, &i)
+	return m.PutTest(&PutTestArgs{args.Key, args.Value}, nil)
 }
 
-func (m *Master) PutTest(args *PutTestArgs, _ *int) (err error) {
+func (m *Master) PutTest(args *PutTestArgs, _ *int) error {
 
-	log.Printf("[PutTest] key=%s, value=%s, MasterDeath=%v, ReplicaDeaths=%v",args.Key, args.Value, args.MasterDeath, args.ReplicaDeaths)
+	logger := log.WithFields(log.Fields{
+		"key":args.Key,
+		"value":args.Value,
+	})
 
-	return m.mutate(
-		PutOp,
-		args.Key,
-		args.MasterDeath,
-		args.ReplicaDeaths,
-		func(r *ReplicaClient, txId string, i int, rd ReplicaDeath) (*bool, error) {
-			return r.TryPut(args.Key, args.Value, txId, rd)
-		})
-}
-
-func getReplicaDeath(replicaDeaths []ReplicaDeath, n int) ReplicaDeath {
-	rd := ReplicaDontDie
-	if replicaDeaths != nil && len(replicaDeaths) > n {
-		rd = replicaDeaths[n]
+	tryPut := func(r *ReplicaClient, txId string) (bool, error) {
+		return r.TryPut(args.Key, args.Value, txId)
 	}
-	return rd
+
+	if err := m.try(PutOp, args.Key, tryPut); err != nil {
+		logger.WithError(err).Error("[PutTest] m.try(PutOp, args.Key, tryPut) failed.")
+		return err
+	}
+
+	logger.Info("[PutTest] ok.")
+	return nil
 }
 
-func (m *Master) mutate(
+func (m *Master) try(op Operation, key string, call func(r *ReplicaClient, txId string) (bool, error) ) (err error){
 
-	operation Operation,
-	key string,
-	masterDeath MasterDeath,
-	replicaDeaths []ReplicaDeath,
-	f func(r *ReplicaClient, txId string, i int, rd ReplicaDeath) (*bool, error),
+	logger := log.WithFields(log.Fields{
+		"op":op,
+		"key":key,
+	})
 
-) (err error) {
+	// 构造事务对象
+	tx := &Transaction{
+		Id: uniuri.New(),
+		Op: op,
+		Key: key,
+		State: Started,
+		//others
+		Redo: m.redoLog,
+		Lock: m.lockMgr,
+		logger: log.WithFields(log.Fields{"Key":key, "op":op}),
+	}
 
-
-
-	action := operation.String()
-	txId := uniuri.New()
-	m.log.writeState(txId, Started)
-	m.txs[txId] = Started
-
-
-	// Send out all mutate requests in parallel.
-	// If any abort, send on the channel.
-	// Channel must be buffered to allow the non-blocking read in the switch.
-	shouldAbort := make(chan int, len(m.replicas))
-	log.Println("Master."+action+" asking replicas to "+action+" tx:", txId, "key:", key)
-
-
-	// 并发调用，阻塞等待所有请求结束
+	m.txm[tx.Id] = tx
+	if err = tx.Start(); err != nil {
+		logger.WithError(err).Error("[try] tx.Start() failed.")
+		return
+	}
+	abortChan := make(chan int, len(m.replicas))
 	m.forEachReplica(
-
 		func(i int, r *ReplicaClient) {
-			// 调用 f()
-			success, err := f(r, txId, i, getReplicaDeath(replicaDeaths, i))
+			success, err := call(r, tx.Id)
 			if err != nil {
-				log.Println("Master."+action+" r.Try"+action+":", err)
+				logger.WithError(err).Error("[try] call(r, tx.Id) error.")
+				abortChan <- 1
+				return
 			}
-			// 如果失败，就需要回滚
-			if success == nil || !*success {
-				shouldAbort <- 1
+			if !success {
+				logger.WithFields(log.Fields{"success":success}).WithError(err).Error("[try] call(r, tx.Id) failed.")
+				abortChan <- 1
+				return
 			}
+			logger.Info("[try] call(r, tx.Id) ok.")
 		},
-
 	)
 
-
-	// If at least one replica needed to abort
 	select {
 	// 失败，需要回滚
-	case <-shouldAbort:
-		log.Println("Master."+action+" asking replicas to abort tx:", txId, "key:", key)
-		m.log.writeState(txId, Aborted)
-		m.txs[txId] = Aborted
-		m.sendAbort(action, txId)
+	case <-abortChan:
+		logger.Error("[try] should abort.")
+		m.sendAbort(tx.Id)
+		if err = tx.Abort(); err != nil {
+			logger.WithError(err).Fatal("[try] tx.Abort() failed.")
+			return
+		}
+		logger.Info("[try] tx.Abort() ok.")
 		return TxAbortedError
-	// 成功，需要提交（本地提交+远程提交）
 	default:
 		break
 	}
 
-	// The transaction is now officially committed
-	m.dieIf(masterDeath, MasterDieBeforeLoggingCommitted) //???
-	m.log.writeState(txId, Committed)
-	m.dieIf(masterDeath, MasterDieAfterLoggingCommitted) //???
-	m.txs[txId] = Committed
+	logger.Info("[try] should commit.")
+	m.sendCommit(tx.Id)
+	// 成功，本地+远程提交
+	if err = tx.Commit(); err != nil {
+		logger.WithError(err).Fatal("[try] tx.Commit() failed.")
+		return
+	}
 
-	// 发送 "commit" 给 replicas
-	m.sendAndWaitForCommit(action, txId, replicaDeaths)
+	logger.Info("[try] tx.Commit() ok.")
 	return
 }
 
-// 发送 "abort" 给 replicas
-func (m *Master) sendAbort(action string, txId string) {
-	log.Println(fmt.Sprintf("[sendAbort] action=%s, txId=%s", action, txId))
-	m.forEachReplica(func(i int, r *ReplicaClient) {
-		_, err := r.Abort(txId)
-		if err != nil {
-			log.Println(fmt.Sprintf("[sendAbort] r.Abort(txId) failed, txId=%s, err=%v", txId, err))
-		} else {
-			log.Println(fmt.Sprintf("[sendAbort] r.Abort(txId) success, txId=%s, err=%v", txId, err))
-		}
-	})
-}
 
-// 发送 "commit" 给 replicas
-func (m *Master) sendAndWaitForCommit(action string, txId string, replicaDeaths []ReplicaDeath) {
-	log.Println(fmt.Sprintf("[sendAndWaitForCommit] action=%s, txId=%s, replicaDeaths=%v", action, txId, replicaDeaths))
+// 发送 "abort" 给 replicas
+func (m *Master) sendAbort(txId string) {
+	logger := log.WithFields(log.Fields{"txId":txId})
 	m.forEachReplica(func(i int, r *ReplicaClient) {
 		for retry := 0; retry < 3; {
-			_, err := r.Commit(txId, getReplicaDeath(replicaDeaths, i))
+			success, err := r.Abort(txId)
 			if err == nil {
-				log.Println(fmt.Sprintf("[sendAndWaitForCommit] r.Commit(txId) success, txId=%s, err=%v", txId, err))
+				logger.WithField("success", success).Info("[sendAbort] r.Abort(txId) ok.")
 				break
 			}
-			log.Println(fmt.Sprintf("[sendAndWaitForCommit] r.Commit(txId) failed, txId=%s, err=%v", txId, err))
 			retry ++
+			logger.WithField("retry", retry).WithError(err).Info("[sendAbort] r.Abort(txId) error, retry...")
 			time.Sleep(100 * time.Millisecond)
 		}
 	})
 }
 
-func (m *Master) dieIf(actual MasterDeath, expected MasterDeath) {
-	if !m.didSuicide && actual == expected {
-
-		log.Println("Killing self as requested at", expected)
-
-		m.log.writeSpecial(killedSelfMarker)
-
-		os.Exit(1)
-	}
+func (m *Master) sendCommit(txId string) {
+	logger := log.WithFields(log.Fields{"txId":txId})
+	m.forEachReplica(func(i int, r *ReplicaClient) {
+		for retry := 0; retry < 3; {
+			success, err := r.Commit(txId)
+			if err == nil {
+				logger.WithField("success", success).Info("[sendCommit] r.Commit(txId) ok.")
+				break
+			}
+			retry ++
+			logger.WithField("retry", retry).WithError(err).Info("[sendCommit] r.Commit(txId) error, retry...")
+			time.Sleep(100 * time.Millisecond)
+		}
+	})
 }
 
 // 并发调用 f() 的封装
@@ -300,20 +286,24 @@ func (m *Master) forEachReplica(f func(i int, r *ReplicaClient)) {
 }
 
 func (m *Master) Ping(args *PingArgs, reply *GetResult) (err error) {
-	log.Println("[Ping] receive request: ", args.Key)
+	logger := log.WithFields(log.Fields{
+		"key": args.Key,
+	})
 	reply.Value = args.Key
+	logger.WithField("value", args.Key).Info("[Ping] ok")
 	return nil
 }
 
 func (m *Master) Status(args *StatusArgs, reply *StatusResult) (err error) {
+	logger := log.WithFields(log.Fields{
+		"TxId": args.TxId,
+	})
 
-	defer log.Printf("[Status] receive request, txId=%s, state=%s: ", args.TxId, reply.State)
-
-	state, ok := m.txs[args.TxId]
-	if !ok {
-		log.Println("[Status] args.TxId is not found, so return \"INVALID\".")
-		m.txs[args.TxId] = NoState
+	reply.State = InValid
+	tx, ok := m.txm[args.TxId]
+	if ok {
+		reply.State = tx.State
 	}
-	reply.State = state
+	logger.Info("[Status] ok.")
 	return nil
 }

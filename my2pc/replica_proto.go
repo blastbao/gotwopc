@@ -13,18 +13,15 @@ type TxPutArgs struct {
 	Key   string
 	Value string
 	TxId  string
-	Die   ReplicaDeath
 }
 
 type TxDelArgs struct {
 	Key  string
 	TxId string
-	Die  ReplicaDeath
 }
 
 type CommitArgs struct {
 	TxId string
-	Die  ReplicaDeath
 }
 
 type AbortArgs struct {

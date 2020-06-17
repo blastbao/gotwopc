@@ -24,6 +24,8 @@ func ParseTx(e Entry) *Tx {
 	return t
 }
 
+
+
 type logRequest struct {
 	record []string		// 数据格式(csv): 事务ID, 事务状态, 操作, key
 	done   chan int
@@ -84,7 +86,7 @@ func (l *logger) loggingLoop() {
 
 
 func (l *logger) writeSpecial(directive string) {
-	l.writeOp(directive, NoState, NoOp, "")
+	l.writeOp(directive, InValid, NoOp, "")
 }
 
 func (l *logger) writeState(txId string, state TxState) {

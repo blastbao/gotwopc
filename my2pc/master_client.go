@@ -96,7 +96,7 @@ func (c *MasterClient) DelTest(key string, masterdeath MasterDeath, replicadeath
 		return
 	}
 	var reply int
-	err = c.call("Master.DelTest", &DelTestArgs{key, masterdeath, replicadeaths }, &reply)
+	err = c.call("Master.DelTest", &DelTestArgs{key}, &reply)
 	if err != nil {
 		log.Println("MasterClient.DelTest:", err)
 		return
@@ -125,7 +125,7 @@ func (c *MasterClient) PutTest(key string, value string, masterdeath MasterDeath
 	}
 
 	var reply int
-	err = c.call("Master.PutTest", &PutTestArgs{ key, value, masterdeath, replicadeaths }, &reply)
+	err = c.call("Master.PutTest", &PutTestArgs{ key, value}, &reply)
 	if err != nil {
 		log.Println("MasterClient.PutTest:", err)
 		return

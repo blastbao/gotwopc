@@ -8,8 +8,6 @@ type PutArgs struct {
 type PutTestArgs struct {
 	Key           string
 	Value         string
-	MasterDeath   MasterDeath
-	ReplicaDeaths []ReplicaDeath
 }
 
 type GetArgs struct {
@@ -27,8 +25,6 @@ type DelArgs struct {
 
 type DelTestArgs struct {
 	Key           string
-	MasterDeath   MasterDeath
-	ReplicaDeaths []ReplicaDeath
 }
 
 type StatusArgs struct {

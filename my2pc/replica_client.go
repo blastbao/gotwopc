@@ -2,7 +2,8 @@ package main
 
 import (
 	"errors"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/rpc"
 )
@@ -47,58 +48,60 @@ func (c *ReplicaClient) call(serviceMethod string, args interface{}, reply inter
 	return
 }
 
-func (c *ReplicaClient) TryPut(key string, value string, txid string, die ReplicaDeath) (Success *bool, err error) {
+func (c *ReplicaClient) TryPut(key string, value string, txid string) (success bool, err error) {
+
+	logger := log.WithFields(log.Fields{"key":key, "value":value})
+
 	if err = c.tryConnect(); err != nil {
+		logger.WithError(err).Error("[ReplicaClient][TryPut] c.tryConnect() error.")
 		return
 	}
 
 	var reply ReplicaActionResult
-	err = c.call("Replica.TryPut", &TxPutArgs{ key, value, txid, die }, &reply)
+	err = c.call("Replica.TryPut", &TxPutArgs{ key, value, txid}, &reply)
 	if err != nil {
-		log.Println("ReplicaClient.TryPut:", err)
+		logger.WithError(err).Error("[ReplicaClient][TryPut] call Replica.TryPut error.")
 		return
 	}
 
-	Success = &reply.Success
-
+	success = reply.Success
+	logger.WithField("success", success).Info("[ReplicaClient][TryPut] ok.")
 	return
 }
 
-func (c *ReplicaClient) TryDel(key string, txid string, die ReplicaDeath) (Success *bool, err error) {
+func (c *ReplicaClient) TryDel(key string, txid string) (success bool, err error) {
 	if err = c.tryConnect(); err != nil {
 		return
 	}
 
 	var reply ReplicaActionResult
-	err = c.call("Replica.TryDel", &TxDelArgs{ key, txid, die }, &reply)
+	err = c.call("Replica.TryDel", &TxDelArgs{ key, txid}, &reply)
 	if err != nil {
 		log.Println("ReplicaClient.TryDel:", err)
 		return
 	}
 
-	Success = &reply.Success
-
+	success = reply.Success
 	return
 }
 
-func (c *ReplicaClient) Commit(txid string, die ReplicaDeath) (Success *bool, err error) {
+func (c *ReplicaClient) Commit(txid string) (Success bool, err error) {
 	if err = c.tryConnect(); err != nil {
 		return
 	}
 
 	var reply ReplicaActionResult
-	err = c.call("Replica.Commit", &CommitArgs{ txid, die }, &reply)
+	err = c.call("Replica.Commit", &CommitArgs{ txid }, &reply)
 	if err != nil {
 		log.Println("ReplicaClient.Commit:", err)
 		return
 	}
 
-	Success = &reply.Success
-
+	Success = reply.Success
 	return
 }
 
-func (c *ReplicaClient) Abort(txid string) (Success *bool, err error) {
+func (c *ReplicaClient) Abort(txid string) (success bool, err error) {
 
 	if err = c.tryConnect(); err != nil {
 		return
@@ -111,8 +114,7 @@ func (c *ReplicaClient) Abort(txid string) (Success *bool, err error) {
 		return
 	}
 
-	Success = &reply.Success
-
+	success = reply.Success
 	return
 }
 
