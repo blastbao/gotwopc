@@ -91,7 +91,7 @@ func (c *MasterClient) Del(key string) (err error) {
 	return
 }
 
-func (c *MasterClient) DelTest(key string, masterdeath MasterDeath, replicadeaths []ReplicaDeath) (err error) {
+func (c *MasterClient) DelTest(key string) (err error) {
 	if err = c.tryConnect(); err != nil {
 		return
 	}
@@ -119,7 +119,7 @@ func (c *MasterClient) Put(key string, value string) (err error) {
 	return
 }
 
-func (c *MasterClient) PutTest(key string, value string, masterdeath MasterDeath, replicadeaths []ReplicaDeath) (err error) {
+func (c *MasterClient) PutTest(key string, value string) (err error) {
 	if err = c.tryConnect(); err != nil {
 		return
 	}

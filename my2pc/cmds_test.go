@@ -20,7 +20,7 @@ func TestCmds_Run(t *testing.T) {
 func TestCmds_Put(t *testing.T) {
 
 	client := NewMasterClient(MasterAddr)
-	err := client.PutTest("foo", "bar", MasterDontDie, make([]ReplicaDeath, 4))
+	err := client.PutTest("foo", "bar")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestCmds_Put(t *testing.T) {
 	wg.Wait()
 
 
-	err = client.DelTest("foo", MasterDontDie, make([]ReplicaDeath, 4))
+	err = client.DelTest("foo")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestReplicaShouldAbortIfPutOnLockedKey(t *testing.T) {
 
 func Test_Status(t *testing.T) {
 	client := NewMasterClient(MasterAddr)
-	err := client.PutTest("foo", "bar", MasterDontDie, make([]ReplicaDeath, 4))
+	err := client.PutTest("foo", "bar")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -135,10 +135,6 @@ func TestReplicaShouldAbortIfDelOnLockedKey(t *testing.T) {
 	}
 	log.Println(ok)
 
-
-
-
-
 	ok, err = client.TryDel("foo", "tx2")
 	if err != nil {
 		log.Fatal(err)
@@ -146,33 +142,71 @@ func TestReplicaShouldAbortIfDelOnLockedKey(t *testing.T) {
 	log.Println(ok)
 }
 
+func TestReplica_TryPut(t *testing.T) {
+	client, err := NewReplicaClient(GetReplicaHost(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ok, err := client.TryPut("foo", "bar2", "tx1")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(ok)
+}
 
+func TestReplica_Get(t *testing.T) {
+	client, err := NewReplicaClient(GetReplicaHost(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+	val,err := client.Get("foo")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*val)
+}
 
-func Test_Get(t *testing.T) {
-	client := NewMasterClient(MasterAddr)
-
-	err := client.Put("TestGetKe2y122223222212", "xxxxxxxxx")
+func TestReplica_Abort(t *testing.T) {
+	client, err := NewReplicaClient(GetReplicaHost(0))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//
-	//val, err := client.Get("TestGetKey")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Println(*val)
-	//
-	//
-	//err = client.Del("TestGetKey")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//val, err = client.Get("TestGetKey")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//log.Println(*val)
+	ok, err := client.Abort("tx1")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(ok)
+}
 
+func TestReplica_Commit(t *testing.T) {
+	client, err := NewReplicaClient(GetReplicaHost(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ok, err := client.Commit("tx1")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(ok)
+}
+
+func Test_Put(t *testing.T) {
+	client := NewMasterClient(MasterAddr)
+
+	err := client.Put("foo", "xxxxxxxxx")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func Test_Get(t *testing.T) {
+	client := NewMasterClient(MasterAddr)
+
+	val,err := client.Get("TestGetKe2y22223222212")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(*val)
 }

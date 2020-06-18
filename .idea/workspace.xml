@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BookmarkManager">
+    <bookmark url="file://$PROJECT_DIR$/my2pc/replica.go" description="&#10;&#9;if r.lockMgr.Lock(key) {&#10;&#9;&#9;logger.Error(&quot;r.lockM..." line="108" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="4d9776e3-db47-4060-9d87-9761680b526b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/my2pc/lock.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/my2pc/redo_log.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/base.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/base.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/cmds_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/cmds_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my2pc/logger.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/logger.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/my2pc/logger.go" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/master.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/master.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/master_client.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/master_client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my2pc/master_proto.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/master_proto.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/my2pc/redo_log.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/redo_log.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/replica.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/replica.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my2pc/replica_client.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/replica_client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/my2pc/replica_proto.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/replica_proto.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/my2pc/storage.go" beforeDir="false" afterPath="$PROJECT_DIR$/my2pc/storage.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -24,71 +23,20 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/main.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="986">
+              <caret line="63" selection-start-line="63" selection-end-line="63" />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/my2pc/cmds_test.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="100">
-              <caret line="153" column="33" selection-start-line="153" selection-start-column="33" selection-end-line="153" selection-end-column="33" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/my2pc/replica.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="971">
-              <caret line="174" column="28" selection-start-line="174" selection-start-column="28" selection-end-line="174" selection-end-column="28" />
-              <folding>
-                <element signature="e#14#73#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/my2pc/storage.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
-              <caret line="19" column="17" selection-start-line="19" selection-start-column="17" selection-end-line="19" selection-end-column="17" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/my2pc/master_proto.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="442">
-              <caret line="26" column="24" selection-start-line="26" selection-start-column="24" selection-end-line="26" selection-end-column="24" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file:///usr/local/Cellar/go/1.14/libexec/src/sync/map.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="210">
-              <caret line="101" column="14" selection-start-line="101" selection-start-column="14" selection-end-line="101" selection-end-column="14" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/replica.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-68">
-              <caret line="106" column="98" selection-start-line="106" selection-start-column="85" selection-end-line="106" selection-end-column="98" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/master.go">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1731">
-              <caret line="233" column="58" selection-start-line="233" selection-start-column="58" selection-end-line="233" selection-end-column="58" />
-              <folding>
-                <element signature="e#14#127#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="252">
+              <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
             </state>
           </provider>
         </entry>
@@ -96,10 +44,37 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/my2pc/replica_client.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-727">
-              <caret line="84" selection-start-line="84" selection-end-line="84" />
+            <state relative-caret-position="312">
+              <caret line="93" column="32" selection-start-line="93" selection-start-column="26" selection-end-line="93" selection-end-column="32" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/replica.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="415">
+              <caret line="239" column="4" selection-start-line="239" selection-start-column="4" selection-end-line="239" selection-end-column="52" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/storage.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="203">
+              <caret line="14" column="19" selection-start-line="14" selection-start-column="19" selection-end-line="14" selection-end-column="19" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/lock.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="272">
+              <caret line="16" column="18" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="18" />
               <folding>
-                <element signature="e#14#59#0" expanded="true" />
+                <element signature="e#14#32#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -108,8 +83,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/my2pc/master.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="213">
-              <caret line="271" column="6" selection-start-line="271" selection-start-column="6" selection-end-line="271" selection-end-column="6" />
+            <state relative-caret-position="455">
+              <caret line="184" selection-start-line="184" selection-end-line="184" />
               <folding>
                 <element signature="e#14#101#0" expanded="true" />
               </folding>
@@ -118,10 +93,31 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/master_client.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="203">
+              <caret line="106" column="23" selection-start-line="106" selection-start-column="23" selection-end-line="106" selection-end-column="23" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/my2pc/base.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-278">
-              <caret line="24" selection-start-line="24" selection-end-line="24" />
+            <state relative-caret-position="203">
+              <caret line="57" column="4" selection-start-line="57" selection-start-column="4" selection-end-line="57" selection-end-column="4" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/my2pc/redo_log.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="311">
+              <caret line="67" column="18" selection-start-line="67" selection-start-column="18" selection-end-line="67" selection-end-column="18" />
+              <folding>
+                <element signature="e#14#89#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -137,7 +133,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>TxPutArgs</find>
       <find>TxAbortedError</find>
       <find>MasterPort</find>
       <find>data</find>
@@ -161,12 +156,13 @@
       <find>run</find>
       <find>f</find>
       <find>ReplicaClient.Abort</find>
-      <find>Commit</find>
       <find>sendCommit</find>
       <find>PutTest</find>
-      <find>TryPut</find>
       <find>call(r, tx.Id) error</find>
       <find>should abort</find>
+      <find>Commit</find>
+      <find>Abort</find>
+      <find>TryPut</find>
     </findStrings>
     <dirStrings>
       <dir>$PROJECT_DIR$</dir>
@@ -223,18 +219,18 @@
         <option value="$PROJECT_DIR$/src/master.go" />
         <option value="$PROJECT_DIR$/my2pc/main.go" />
         <option value="$PROJECT_DIR$/my2pc/lock.go" />
-        <option value="$PROJECT_DIR$/my2pc/redo_log.go" />
-        <option value="$PROJECT_DIR$/my2pc/logger.go" />
-        <option value="$PROJECT_DIR$/my2pc/storage.go" />
         <option value="$PROJECT_DIR$/my2pc/masterr.go" />
         <option value="$PROJECT_DIR$/my2pc/replica_proto.go" />
         <option value="$PROJECT_DIR$/my2pc/master_proto.go" />
-        <option value="$PROJECT_DIR$/my2pc/master_client.go" />
-        <option value="$PROJECT_DIR$/my2pc/replica.go" />
         <option value="$PROJECT_DIR$/my2pc/replica_client.go" />
-        <option value="$PROJECT_DIR$/my2pc/master.go" />
-        <option value="$PROJECT_DIR$/my2pc/base.go" />
+        <option value="$PROJECT_DIR$/my2pc/logger.go" />
+        <option value="$PROJECT_DIR$/my2pc/storage.go" />
+        <option value="$PROJECT_DIR$/my2pc/redo_log.go" />
+        <option value="$PROJECT_DIR$/my2pc/master_client.go" />
         <option value="$PROJECT_DIR$/my2pc/cmds_test.go" />
+        <option value="$PROJECT_DIR$/my2pc/base.go" />
+        <option value="$PROJECT_DIR$/my2pc/master.go" />
+        <option value="$PROJECT_DIR$/my2pc/replica.go" />
       </list>
     </option>
   </component>
@@ -308,8 +304,8 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Go Test.Test_Get in github.com/blastbao/gotwopc/my2pc">
-    <configuration name="TestCmds_Put in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Go Test.Test_Put in github.com/blastbao/gotwopc/my2pc">
+    <configuration name="TestReplica_Abort in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gotwopc" />
       <working_directory value="$PROJECT_DIR$/my2pc" />
       <framework value="gotest" />
@@ -317,10 +313,10 @@
       <package value="github.com/blastbao/gotwopc/my2pc" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestCmds_Put$" />
+      <pattern value="^TestReplica_Abort$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestReplicaShouldAbortIfDelOnLockedKey in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestReplica_Commit in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gotwopc" />
       <working_directory value="$PROJECT_DIR$/my2pc" />
       <framework value="gotest" />
@@ -328,10 +324,10 @@
       <package value="github.com/blastbao/gotwopc/my2pc" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestReplicaShouldAbortIfDelOnLockedKey$" />
+      <pattern value="^TestReplica_Commit$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestReplicaShouldAbortIfPutOnLockedKey in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestReplica_Get in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gotwopc" />
       <working_directory value="$PROJECT_DIR$/my2pc" />
       <framework value="gotest" />
@@ -339,10 +335,10 @@
       <package value="github.com/blastbao/gotwopc/my2pc" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^TestReplicaShouldAbortIfPutOnLockedKey$" />
+      <pattern value="^TestReplica_Get$" />
       <method v="2" />
     </configuration>
-    <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestReplica_TryPut in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gotwopc" />
       <working_directory value="$PROJECT_DIR$/my2pc" />
       <framework value="gotest" />
@@ -350,10 +346,10 @@
       <package value="github.com/blastbao/gotwopc/my2pc" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^Test_Get$" />
+      <pattern value="^TestReplica_TryPut$" />
       <method v="2" />
     </configuration>
-    <configuration name="Test_Status in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="gotwopc" />
       <working_directory value="$PROJECT_DIR$/my2pc" />
       <framework value="gotest" />
@@ -361,49 +357,49 @@
       <package value="github.com/blastbao/gotwopc/my2pc" />
       <directory value="$PROJECT_DIR$/" />
       <filePath value="$PROJECT_DIR$/" />
-      <pattern value="^Test_Status$" />
+      <pattern value="^Test_Put$" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Test.Test_Get in github.com/blastbao/gotwopc/my2pc" />
-        <item itemvalue="Go Test.TestCmds_Put in github.com/blastbao/gotwopc/my2pc" />
-        <item itemvalue="Go Test.TestReplicaShouldAbortIfDelOnLockedKey in github.com/blastbao/gotwopc/my2pc" />
-        <item itemvalue="Go Test.Test_Status in github.com/blastbao/gotwopc/my2pc" />
-        <item itemvalue="Go Test.TestReplicaShouldAbortIfPutOnLockedKey in github.com/blastbao/gotwopc/my2pc" />
+        <item itemvalue="Go Test.Test_Put in github.com/blastbao/gotwopc/my2pc" />
+        <item itemvalue="Go Test.TestReplica_Commit in github.com/blastbao/gotwopc/my2pc" />
+        <item itemvalue="Go Test.TestReplica_TryPut in github.com/blastbao/gotwopc/my2pc" />
+        <item itemvalue="Go Test.TestReplica_Get in github.com/blastbao/gotwopc/my2pc" />
+        <item itemvalue="Go Test.TestReplica_Abort in github.com/blastbao/gotwopc/my2pc" />
       </list>
     </recent_temporary>
   </component>
   <component name="TestHistory">
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 54m 04s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="TestReplica_TryPut_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 19h 04m 27s.xml">
+      <configuration name="TestReplica_TryPut in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 54m 24s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="TestReplica_Abort_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 19h 04m 40s.xml">
+      <configuration name="TestReplica_Abort in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="TestCmds_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 56m 54s.xml">
-      <configuration name="TestCmds_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="TestReplica_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 19h 04m 57s.xml">
+      <configuration name="TestReplica_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 57m 05s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="Test_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 06m 19s.xml">
+      <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 58m 11s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="Test_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 07m 03s.xml">
+      <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 17h 59m 35s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="Test_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 07m 49s.xml">
+      <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 18h 02m 25s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="TestReplica_TryPut_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 08m 16s.xml">
+      <configuration name="TestReplica_TryPut in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 18h 02m 37s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="Test_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 08m 39s.xml">
+      <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 18h 02m 50s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="TestReplica_TryPut_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 20m 27s.xml">
+      <configuration name="TestReplica_TryPut in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
-    <history-entry file="Test_Get_in_github_com_blastbao_gotwopc_my2pc - 2020.06.17 at 18h 07m 54s.xml">
-      <configuration name="Test_Get in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
+    <history-entry file="Test_Put_in_github_com_blastbao_gotwopc_my2pc - 2020.06.18 at 11h 20m 32s.xml">
+      <configuration name="Test_Put in github.com/blastbao/gotwopc/my2pc" configurationId="GoTestRunConfiguration" />
     </history-entry>
   </component>
   <component name="ToolWindowManager">
@@ -623,16 +619,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/redo_log.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="49">
-          <caret line="64" column="18" selection-start-line="64" selection-start-column="18" selection-end-line="64" selection-end-column="18" />
-          <folding>
-            <element signature="e#14#89#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/logger_test.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="105">
@@ -650,48 +636,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/main.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="120">
-          <caret line="63" selection-start-line="63" selection-end-line="63" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/my2pc/masterr.go">
       <provider selected="true" editor-type-id="text-editor">
         <state>
           <caret column="12" selection-start-column="12" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/replica_proto.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="15" selection-start-line="15" selection-end-line="15" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/logger.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="311">
-          <caret line="91" column="17" selection-start-line="91" selection-start-column="17" selection-end-line="91" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/lock.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" column="5" selection-start-line="10" selection-start-column="5" selection-end-line="10" selection-end-column="5" />
-          <folding>
-            <element signature="e#14#32#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/master_client.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-413">
-          <caret line="106" column="23" selection-start-line="106" selection-start-column="23" selection-end-line="106" selection-end-column="23" />
         </state>
       </provider>
     </entry>
@@ -702,44 +650,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/storage.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="220">
-          <caret line="19" column="17" selection-start-line="19" selection-start-column="17" selection-end-line="19" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/replica_client.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-727">
-          <caret line="84" selection-start-line="84" selection-end-line="84" />
-          <folding>
-            <element signature="e#14#59#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/replica.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="971">
-          <caret line="174" column="28" selection-start-line="174" selection-start-column="28" selection-end-line="174" selection-end-column="28" />
-          <folding>
-            <element signature="e#14#73#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/base.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-278">
-          <caret line="24" selection-start-line="24" selection-end-line="24" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/replica.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-68">
           <caret line="106" column="98" selection-start-line="106" selection-start-column="85" selection-end-line="106" selection-end-column="98" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/master_proto.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="442">
+          <caret line="26" column="24" selection-start-line="26" selection-start-column="24" selection-end-line="26" selection-end-column="24" />
         </state>
       </provider>
     </entry>
@@ -753,27 +674,96 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/my2pc/master_proto.go">
+    <entry file="file://$PROJECT_DIR$/my2pc/logger.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="442">
-          <caret line="26" column="24" selection-start-line="26" selection-start-column="24" selection-end-line="26" selection-end-column="24" />
+        <state relative-caret-position="17">
+          <caret line="1" lean-forward="true" selection-start-line="1" selection-end-line="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/replica_proto.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="15" selection-start-line="15" selection-end-line="15" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/main.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="986">
+          <caret line="63" selection-start-line="63" selection-end-line="63" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/storage.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="203">
+          <caret line="14" column="19" selection-start-line="14" selection-start-column="19" selection-end-line="14" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/replica_client.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="93" column="32" selection-start-line="93" selection-start-column="26" selection-end-line="93" selection-end-column="32" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/lock.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="272">
+          <caret line="16" column="18" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="18" />
+          <folding>
+            <element signature="e#14#32#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/redo_log.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="311">
+          <caret line="67" column="18" selection-start-line="67" selection-start-column="18" selection-end-line="67" selection-end-column="18" />
+          <folding>
+            <element signature="e#14#89#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/master_client.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="203">
+          <caret line="106" column="23" selection-start-line="106" selection-start-column="23" selection-end-line="106" selection-end-column="23" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/my2pc/master.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="213">
-          <caret line="271" column="6" selection-start-line="271" selection-start-column="6" selection-end-line="271" selection-end-column="6" />
+        <state relative-caret-position="455">
+          <caret line="184" selection-start-line="184" selection-end-line="184" />
           <folding>
             <element signature="e#14#101#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/base.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="203">
+          <caret line="57" column="4" selection-start-line="57" selection-start-column="4" selection-end-line="57" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/my2pc/replica.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="415">
+          <caret line="239" column="4" selection-start-line="239" selection-start-column="4" selection-end-line="239" selection-end-column="52" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/my2pc/cmds_test.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="100">
-          <caret line="153" column="33" selection-start-line="153" selection-start-column="33" selection-end-line="153" selection-end-column="33" />
+        <state relative-caret-position="252">
+          <caret line="186" lean-forward="true" selection-start-line="186" selection-end-line="186" />
         </state>
       </provider>
     </entry>

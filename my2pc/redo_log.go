@@ -8,6 +8,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// 日志条目
+type Entry struct {
+	Id    string    // 事务ID
+	State TxState   // 事务状态
+	Op    Operation // 操作
+	Key   string    // key
+	Value string
+}
+
+type logRequest struct {
+	record []string // 数据格式(csv): 事务ID, 事务状态, 操作, key
+	done   chan int
+}
+
 type RedoLog struct {
 	path      string           // 文件路径
 	file      *os.File         // 文件句柄
@@ -36,27 +50,27 @@ func NewRedoLog(logPath string) *RedoLog {
 }
 
 func (l *RedoLog) Begin(tx *Transaction) {
-	l.write(tx.Id, tx.State, tx.Op, tx.Key)
+	l.write(tx.Id, tx.State, tx.Op, tx.Key, tx.Value)
 }
 
 func (l *RedoLog) Prepare(tx *Transaction) {
-	l.write(tx.Id, tx.State, tx.Op, tx.Key)
+	l.write(tx.Id, tx.State, tx.Op, tx.Key, tx.Value)
 }
 
 func (l *RedoLog) Abort(tx *Transaction) {
-	l.write(tx.Id, tx.State, tx.Op, tx.Key)
+	l.write(tx.Id, tx.State, tx.Op, tx.Key, tx.Value)
 }
 
 func (l *RedoLog) Commit(tx *Transaction) {
-	l.write(tx.Id, tx.State, tx.Op, tx.Key)
+	l.write(tx.Id, tx.State, tx.Op, tx.Key, tx.Value)
 }
 
 func (l *RedoLog) Write(tx *Transaction) {
-	l.write(tx.Id, tx.State, tx.Op, tx.Key)
+	l.write(tx.Id, tx.State, tx.Op, tx.Key, tx.Value)
 }
 
-func (l *RedoLog) write(txId string, state TxState, op Operation, key string) {
-	record := []string{txId, state.String(), op.String(), key}
+func (l *RedoLog) write(txId string, state TxState, op Operation, key, value string) {
+	record := []string{txId, state.String(), op.String(), key, value}
 	done := make(chan int)
 	l.reqChan <- &logRequest{record, done}
 	<-done
@@ -78,7 +92,13 @@ func (l *RedoLog) Read() (entries []Entry, err error) {
 	}
 
 	for _, record := range records {
-		entries = append(entries, Entry{record[0], ParseTxState(record[1]), ParseOperation(record[2]), record[3]})
+		entries = append(entries, Entry{
+				Id: record[0],
+				State: ParseTxState(record[1]),
+				Op: ParseOperation(record[2]),
+				Key: record[3],
+				Value: record[4],
+			})
 	}
 	return
 }

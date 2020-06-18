@@ -69,7 +69,7 @@ func (r *Replica) TryPut(args *TxPutArgs, reply *ReplicaActionResult) error {
 		return nil
 	}
 
-	ok, err := r.try(args.TxId, args.Key, PutOp, writeTemp)
+	ok, err := r.try(args.TxId, args.Key, args.Value, PutOp, writeTemp)
 	if err != nil {
 		logger.WithError(err).Error("[TryPut] failed.")
 		return err
@@ -87,7 +87,7 @@ func (r *Replica) TryDel(args *TxDelArgs, reply *ReplicaActionResult) error {
 		"Key":args.Key,
 	})
 
-	ok, err := r.try(args.TxId, args.Key, DelOp, nil)
+	ok, err := r.try(args.TxId, args.Key, "", DelOp, nil)
 	if err != nil {
 		logger.WithError(err).Error("[TryDel] failed.")
 		return err
@@ -97,7 +97,7 @@ func (r *Replica) TryDel(args *TxDelArgs, reply *ReplicaActionResult) error {
 	return nil
 }
 
-func (r *Replica) try(txId string, key string, op Operation, f func() error) (ok bool, err error) {
+func (r *Replica) try(txId string, key, val string, op Operation, f func() error) (ok bool, err error) {
 
 	logger := log.WithFields(log.Fields{
 		"txId":txId,
@@ -112,13 +112,12 @@ func (r *Replica) try(txId string, key string, op Operation, f func() error) (ok
 		// core
 		Id: txId,
 		Key: key,
+		Value: val,
 		Op: op,
 		State: Started,
 		F: f,
-
 		//others
 		Redo: r.redoLog,
-		Lock: r.lockMgr,
 		logger: log.WithFields(log.Fields{"txId":txId,"Key":key, "op":op}),
 	}
 	r.txm[txId] = tx
@@ -126,6 +125,11 @@ func (r *Replica) try(txId string, key string, op Operation, f func() error) (ok
 	if err = tx.Start(); err != nil {
 		logger.WithError(err).Error("[try] tx.Start() failed.")
 		return
+	}
+
+	if r.lockMgr.Lock(key) {
+		logger.Error("r.lockMgr.Lock(key) failed.")
+		return ok, errors.New("key is locked by others")
 	}
 
 	if err = tx.Prepare(); err != nil {
@@ -148,21 +152,27 @@ func (r *Replica) Commit(args *CommitArgs, reply *ReplicaActionResult) error {
 
 	tx, ok := r.txm[args.TxId]
 	if !ok {
-		logger.Error("[TCommit] tx not exist.")
+		logger.Error("[Commit] tx not exist.")
 		return errors.New("tx not exist")
 	}
 
 	if tx.State != Prepared {
-		logger.WithField("state", tx.State).Error("[TCommit] tx.State != Prepared.")
+		logger.WithField("state", tx.State).Error("[Commit] tx.State != Prepared.")
 		return fmt.Errorf("can not commit, tx.State=%s", tx.State)
 	}
 
 	if err := r.commit(tx); err != nil {
-		logger.WithError(err).Error("[TCommit] r.tCommit(tx) failed.")
+		logger.WithError(err).Error("[Commit] r.commit(tx) failed.")
 		return err
 	}
 
 	reply.Success = true
+	logger.WithFields(log.Fields{
+		"txId": tx.Id,
+		"key": tx.Key,
+		"value": tx.Value,
+		"op":tx.Op,
+	}).Info("[Commit] ok.")
 	return nil
 }
 
@@ -190,6 +200,7 @@ func (r *Replica) commit(tx *Transaction) (err error) {
 		r.temp.Del(tempKey)
 	}
 
+	r.lockMgr.Unlock(tx.Key)
 	return nil
 }
 
@@ -208,6 +219,7 @@ func (r *Replica) abort(tx *Transaction) (err error) {
 	}
 	// 移除
 	delete(r.txm, tx.Id)
+	r.lockMgr.Unlock(tx.Key)
 	return nil
 }
 
@@ -225,9 +237,9 @@ func (r *Replica) Abort(args *AbortArgs, reply *ReplicaActionResult) (err error)
 		return errors.New("tx not exist")
 	}
 
-	if tx.State != Prepared {
-		logger.WithField("state", tx.State).Error("[TAbort] tx.State != Prepared.")
-		return fmt.Errorf("can not commit, tx.State=%s", tx.State)
+	if tx.State != Started && tx.State != Prepared {
+		logger.WithField("state", tx.State).Error("[TAbort] tx.State cannot abort.")
+		return nil
 	}
 
 	if err := r.abort(tx); err != nil {
@@ -235,6 +247,12 @@ func (r *Replica) Abort(args *AbortArgs, reply *ReplicaActionResult) (err error)
 	}
 
 	reply.Success = true
+	log.WithFields(log.Fields{
+		"txId": tx.Id,
+		"key": tx.Key,
+		"value": tx.Value,
+		"op":tx.Op,
+	}).Info("[Abort] ok.")
 	return nil
 }
 
@@ -243,8 +261,8 @@ func (r *Replica) parseTx(e Entry) *Transaction {
 		Id: e.Id,
 		State: e.State,
 		Key: e.Key,
+		Value: e.Value,
 		Op: e.Op,
-		Lock: r.lockMgr,
 		Redo: r.redoLog,
 		logger: log.WithFields(log.Fields{"txId":e.Id,"Key":e.Key, "op":e.Op}),
 	}
@@ -313,6 +331,7 @@ func (r *Replica) Get(args *ReplicaKeyArgs, reply *ReplicaGetResult) (err error)
 	val, ok := r.store.Get(args.Key)
 	if !ok {
 		logger.Error("[Get] key not exist")
+		return errors.New("key not exist")
 	}
 
 	reply.Value = val.(string)
@@ -347,7 +366,6 @@ func (r *Replica) cleanUpTempStore() (err error) {
 //
 // 请求 master 查询事务状态
 func (r *Replica) getStatus(txId string) TxState {
-
 	client := NewMasterClient(MasterAddr)
 	for retry := 0; retry < 3; {
 		state, err := client.Status(txId)
@@ -358,6 +376,5 @@ func (r *Replica) getStatus(txId string) TxState {
 		}
 		return *state
 	}
-
 	return InValid
 }

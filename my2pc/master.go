@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/dchest/uniuri"
 	log "github.com/sirupsen/logrus"
@@ -63,6 +64,7 @@ func (m *Master) parseTx(e Entry) *Transaction {
 		Id: e.Id,
 		State: e.State,
 		Key: e.Key,
+		Value: e.Value,
 		Op: e.Op,
 		Redo: m.redoLog,
 		logger: log.WithFields(log.Fields{"txId":e.Id,"Key":e.Key, "op":e.Op}),
@@ -137,7 +139,7 @@ func (m *Master) DelTest(args *DelTestArgs, _ *int) (err error) {
 		return r.TryDel(args.Key, txId)
 	}
 
-	if err := m.try(DelOp, args.Key, tryDel); err != nil {
+	if err := m.try(DelOp, args.Key, "", tryDel); err != nil {
 		logger.WithError(err).Error("[DelTest] m.try(PutOp, args.Key, tryDel) failed.")
 		return err
 	}
@@ -160,7 +162,7 @@ func (m *Master) PutTest(args *PutTestArgs, _ *int) error {
 		return r.TryPut(args.Key, args.Value, txId)
 	}
 
-	if err := m.try(PutOp, args.Key, tryPut); err != nil {
+	if err := m.try(PutOp, args.Key,  args.Value, tryPut); err != nil {
 		logger.WithError(err).Error("[PutTest] m.try(PutOp, args.Key, tryPut) failed.")
 		return err
 	}
@@ -169,75 +171,105 @@ func (m *Master) PutTest(args *PutTestArgs, _ *int) error {
 	return nil
 }
 
-func (m *Master) try(op Operation, key string, call func(r *ReplicaClient, txId string) (bool, error) ) (err error){
+func (m *Master) try(op Operation, key, val string, call func(r *ReplicaClient, txId string) (bool, error)) (err error){
 
 	logger := log.WithFields(log.Fields{
 		"op":op,
 		"key":key,
 	})
 
+	if m.lockMgr.Lock(key) {
+		logger.Error("r.lockMgr.Lock(key) failed.")
+		return errors.New("key is locked by others")
+	}
+
 	// 构造事务对象
 	tx := &Transaction{
 		Id: uniuri.New(),
 		Op: op,
 		Key: key,
-		State: Started,
+		Value: val,
 		//others
 		Redo: m.redoLog,
-		Lock: m.lockMgr,
 		logger: log.WithFields(log.Fields{"Key":key, "op":op}),
 	}
-
 	m.txm[tx.Id] = tx
+
+	// Start
 	if err = tx.Start(); err != nil {
 		logger.WithError(err).Error("[try] tx.Start() failed.")
+		m.lockMgr.Unlock(key)
 		return
 	}
-	abortChan := make(chan int, len(m.replicas))
-	m.forEachReplica(
-		func(i int, r *ReplicaClient) {
-			success, err := call(r, tx.Id)
-			if err != nil {
-				logger.WithError(err).Error("[try] call(r, tx.Id) error.")
-				abortChan <- 1
-				return
-			}
-			if !success {
-				logger.WithFields(log.Fields{"success":success}).WithError(err).Error("[try] call(r, tx.Id) failed.")
-				abortChan <- 1
-				return
-			}
-			logger.Info("[try] call(r, tx.Id) ok.")
-		},
-	)
 
-	select {
-	// 失败，需要回滚
-	case <-abortChan:
-		logger.Error("[try] should abort.")
-		m.sendAbort(tx.Id)
+	// Prepare
+	if err = tx.Prepare(); err != nil {
+		logger.WithError(err).Fatal("[try] tx.Prepare() failed.")
+		m.lockMgr.Unlock(key)
+		return
+	}
+
+	// Prepare replicas
+	err = m.sendPrepare(tx.Id, call)
+	if err != nil {
+		logger.WithError(err).Error("[try] m.sendPrepare(tx.Id, call) failed, should Abort().")
 		if err = tx.Abort(); err != nil {
 			logger.WithError(err).Fatal("[try] tx.Abort() failed.")
 			return
 		}
+		m.sendAbort(tx.Id)
+		m.lockMgr.Unlock(key)
 		logger.Info("[try] tx.Abort() ok.")
 		return TxAbortedError
-	default:
-		break
 	}
-
 	logger.Info("[try] should commit.")
-	m.sendCommit(tx.Id)
-	// 成功，本地+远程提交
+
+	// Commit
 	if err = tx.Commit(); err != nil {
 		logger.WithError(err).Fatal("[try] tx.Commit() failed.")
 		return
 	}
 
-	logger.Info("[try] tx.Commit() ok.")
+	// Commit replicas
+	m.sendCommit(tx.Id)
+	m.lockMgr.Unlock(key)
+
+	logger.Info("[try] ok.")
 	return
 }
 
+// 发送 "prepare" 给 replicas
+func (m *Master) sendPrepare(txId string, call func(r *ReplicaClient, txId string) (bool, error)) error {
+	logger := log.WithFields(log.Fields{"txId":txId})
+	abort := make(chan int, len(m.replicas))
+	m.forEachReplica(
+		func(i int, r *ReplicaClient) {
+			success, err := call(r, txId)
+			if err != nil {
+				logger.WithError(err).Error("[sendPrepare] call(r, tx.Id) error.")
+				abort <- 1
+				return
+			}
+			if !success {
+				logger.WithFields(log.Fields{"success":success}).WithError(err).Error("[sendPrepare] call(r, tx.Id) failed.")
+				abort <- 1
+				return
+			}
+			logger.Info("[sendPrepare] call(r, tx.Id) ok.")
+		},
+	)
+
+	select {
+	// 失败，需要回滚
+	case <-abort:
+		logger.Error("[sendPrepare] should abort.")
+		return TxAbortedError
+	default:
+		break
+	}
+	logger.Info("[sendPrepare] should commit.")
+	return nil
+}
 
 // 发送 "abort" 给 replicas
 func (m *Master) sendAbort(txId string) {

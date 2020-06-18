@@ -11,33 +11,17 @@ import (
 
 type Transaction struct {
 	Id          string
-	Key   		string
+	Key,Value   string
 	Op    		Operation
 	State 		TxState
 	F func() error
 
 	Redo     *RedoLog
-	Lock     *LockMgr
 	logger   *log.Entry
 }
 
 func (t *Transaction) Start() error {
-	if t.Lock.Lock(t.Key) {
-		t.logger.Error("t.LockMgr.Lock(t.Key) failed.")
-		t.Abort()
-		return errors.New("key is locked by others")
-	}
 	t.State = Started
-	// 执行事务逻辑
-	if t.F != nil {
-		if err := t.F(); err != nil {
-			t.logger.WithError(err).Error("t.F() failed.")
-			t.Abort()
-			t.Lock.Unlock(t.Key)
-			return err
-		}
-		t.logger.Info("[Transaction] t.F() ok.")
-	}
 	t.Redo.Write(t)
 	return nil
 }
@@ -45,6 +29,13 @@ func (t *Transaction) Start() error {
 func (t *Transaction) Prepare() error {
 	t.State = Prepared
 	t.Redo.Write(t)
+	if t.F != nil {
+		if err := t.F(); err != nil {
+			t.logger.WithError(err).Error("[Transaction] t.F() failed.")
+			return err
+		}
+		t.logger.Info("[Transaction] t.F() ok.")
+	}
 	return nil
 }
 
@@ -57,23 +48,8 @@ func (t *Transaction) Abort() error {
 func (t *Transaction) Commit() error {
 	t.State = Committed
 	t.Redo.Write(t)
-	t.Lock.Unlock(t.Key)
 	return nil
 }
-
-
-
-
-
-type Tx struct {
-	Id    string
-	Key   string
-	Op    Operation
-	State TxState
-}
-
-
-
 
 type TxState int
 
@@ -172,29 +148,3 @@ type IReplicaMaster interface {
 	Del(args *DelArgs, _ *int) (err error)
 	DelTest(args *DelTestArgs, _ *int) (err error)
 }
-type ReplicaDeath int
-
-const (
-
-	ReplicaDontDie ReplicaDeath = iota
-
-	// During mutation
-	ReplicaDieBeforeProcessingMutateRequest
-	ReplicaDieAfterLoggingPrepared
-
-	// During commit
-	ReplicaDieBeforeProcessingCommit
-	ReplicaDieAfterDeletingFromTempStore
-	ReplicaDieAfterLoggingCommitted
-)
-
-type MasterDeath int
-
-const (
-	MasterDontDie MasterDeath = iota
-	MasterDieBeforeLoggingCommitted
-	MasterDieAfterLoggingCommitted
-)
-
-var killedSelfMarker = "::justkilledself::"
-var firstRestartAfterSuicideMarker = "::firstrestartaftersuicide::"
